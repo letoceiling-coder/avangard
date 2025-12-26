@@ -39,7 +39,7 @@
             </div>
             <template v-else v-for="item in menu" :key="item.route || item.title">
                 <router-link
-                    v-if="!item.children && item.route"
+                    v-if="!item.children && item.route && isRouteAvailable(item.route)"
                     :to="{ name: item.route }"
                     @click="handleMobileMenuClick"
                     class="nav-menu-item flex items-center rounded-xl text-sm font-medium transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground px-4 py-3 gap-3"
@@ -85,6 +85,7 @@
                             <router-link
                                 v-for="child in item.children"
                                 :key="child.route"
+                                v-if="child.route && isRouteAvailable(child.route)"
                                 :to="{ name: child.route }"
                                 @click="handleMobileMenuClick"
                                 class="resource-submenu-item flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-all text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -225,6 +226,17 @@ export default {
             }
         };
 
+        // Проверка существования роута перед использованием
+        const isRouteAvailable = (routeName) => {
+            try {
+                const route = router.resolve({ name: routeName });
+                return route && route.name === routeName;
+            } catch (error) {
+                console.warn('⚠️ Route not available:', routeName, error);
+                return false;
+            }
+        };
+
         return {
             menu,
             user,
@@ -238,6 +250,7 @@ export default {
             getIconComponent,
             handleLogout,
             handleMobileMenuClick,
+            isRouteAvailable,
         };
     },
 };

@@ -312,6 +312,17 @@ const router = createRouter({
     routes,
 });
 
+// Обработка ошибок при загрузке компонентов
+router.onError((error) => {
+    console.error('❌ Router error:', error);
+    console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+    });
+    // Не прерываем навигацию, просто логируем ошибку
+});
+
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
     // КРИТИЧНО: Исправляем путь, если он содержит /public/

@@ -117,13 +117,18 @@ export default {
             
             // Если есть родительский маршрут в meta (например, для тикета поддержки)
             if (route.meta?.parent) {
-                const parentRoute = router.resolve({ name: route.meta.parent });
-                if (parentRoute.name) {
-                    crumbs.push({
-                        title: parentRoute.meta?.title || parentRoute.name,
-                        name: parentRoute.name,
-                        path: parentRoute.path,
-                    });
+                try {
+                    const parentRoute = router.resolve({ name: route.meta.parent });
+                    if (parentRoute && parentRoute.name) {
+                        crumbs.push({
+                            title: parentRoute.meta?.title || parentRoute.name,
+                            name: parentRoute.name,
+                            path: parentRoute.path,
+                        });
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to resolve parent route:', route.meta.parent, error);
+                    // Продолжаем без родительского роута
                 }
             }
             
