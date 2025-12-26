@@ -73,6 +73,9 @@ class Deploy extends Command
             // Шаг 3: Проверка remote репозитория
             $this->ensureGitRemote($dryRun);
 
+            // Шаг 3.5: Проверка актуальности коммитов
+            $this->checkCommitsUpToDate($dryRun);
+
             // Шаг 4: Добавление изменений в git
             if ($hasChanges) {
                 $this->addChangesToGit($dryRun);
@@ -267,6 +270,128 @@ class Deploy extends Command
         }
 
         $this->newLine();
+    }
+
+    /**
+     * Проверка актуальности коммитов
+     */
+    protected function checkCommitsUpToDate(bool $dryRun): void
+    {
+        $this->info('🔍 Шаг 3.5: Проверка актуальности коммитов...');
+        
+        if ($dryRun) {
+            $this->line('  [DRY-RUN] Выполнение: проверка коммитов');
+            return;
+        }
+
+        try {
+            // Получаем текущую ветку
+            $branchProcess = Process::run('git rev-parse --abbrev-ref HEAD');
+            $currentBranch = trim($branchProcess->output()) ?: 'main';
+            
+            // Получаем локальный коммит
+            $localCommitProcess = Process::run('git rev-parse HEAD');
+            $localCommit = trim($localCommitProcess->output());
+            
+            if (empty($localCommit)) {
+                $this->warn('  ⚠️  Не удалось определить локальный коммит');
+                $this->newLine();
+                return;
+            }
+            
+            // Обновляем информацию о remote (fetch)
+            $this->line('  📥 Обновление информации о remote...');
+            $fetchProcess = Process::run("git fetch origin {$currentBranch} 2>&1");
+            
+            if (!$fetchProcess->successful()) {
+                $this->warn('  ⚠️  Не удалось обновить информацию о remote (возможно, ветка еще не существует на remote)');
+                $this->newLine();
+                return;
+            }
+            
+            // Получаем удаленный коммит
+            $remoteCommitProcess = Process::run("git rev-parse origin/{$currentBranch} 2>&1");
+            $remoteCommit = trim($remoteCommitProcess->output());
+            
+            if (empty($remoteCommit)) {
+                $this->line('  ℹ️  Удаленная ветка не найдена (первый деплой?)');
+                $this->newLine();
+                return;
+            }
+            
+            // Сравниваем коммиты
+            $localShort = substr($localCommit, 0, 7);
+            $remoteShort = substr($remoteCommit, 0, 7);
+            
+            $this->line("  📍 Локальный коммит:  {$localShort}");
+            $this->line("  📍 Удаленный коммит: {$remoteShort}");
+            
+            if ($localCommit === $remoteCommit) {
+                $this->newLine();
+                $this->warn('  ⚠️  Локальный и удаленный коммиты совпадают!');
+                $this->warn('  ⚠️  На сервере уже установлена эта версия.');
+                
+                // Проверяем, есть ли локальные изменения
+                $statusProcess = Process::run('git status --porcelain');
+                $hasLocalChanges = !empty(trim($statusProcess->output()));
+                
+                if (!$hasLocalChanges) {
+                    $this->warn('  ⚠️  Нет локальных изменений для отправки.');
+                    $this->newLine();
+                    
+                    if (php_sapi_name() === 'cli' && !$this->option('no-interaction')) {
+                        if (!$this->confirm('  Продолжить деплой? (сервер уже на этой версии)', false)) {
+                            $this->info('  Деплой отменен.');
+                            throw new \Exception('Деплой отменен пользователем');
+                        }
+                    } else {
+                        $this->info('  ℹ️  Продолжаем деплой (неинтерактивный режим)');
+                    }
+                } else {
+                    $this->info('  ℹ️  Есть локальные изменения, которые будут отправлены');
+                }
+            } else {
+                // Проверяем, отстает ли локальная ветка
+                $behindProcess = Process::run("git rev-list --count HEAD..origin/{$currentBranch}");
+                $behindCount = (int) trim($behindProcess->output());
+                
+                if ($behindCount > 0) {
+                    $this->newLine();
+                    $this->warn("  ⚠️  Локальная ветка отстает от удаленной на {$behindCount} коммит(ов)!");
+                    $this->warn('  ⚠️  Рекомендуется выполнить: git pull перед деплоем');
+                    $this->newLine();
+                    
+                    if (php_sapi_name() === 'cli' && !$this->option('no-interaction')) {
+                        if (!$this->confirm('  Продолжить деплой? (может привести к конфликтам)', false)) {
+                            $this->info('  Деплой отменен.');
+                            throw new \Exception('Деплой отменен пользователем');
+                        }
+                    } else {
+                        $this->info('  ℹ️  Продолжаем деплой (неинтерактивный режим)');
+                    }
+                } else {
+                    // Локальная ветка впереди
+                    $aheadProcess = Process::run("git rev-list --count origin/{$currentBranch}..HEAD");
+                    $aheadCount = (int) trim($aheadProcess->output());
+                    
+                    if ($aheadCount > 0) {
+                        $this->line("  ✅ Локальная ветка впереди на {$aheadCount} коммит(ов)");
+                    }
+                }
+            }
+            
+            $this->newLine();
+        } catch (\Exception $e) {
+            // Если ошибка не критична (например, отмена пользователем), пробрасываем дальше
+            if (str_contains($e->getMessage(), 'отменен')) {
+                throw $e;
+            }
+            
+            // Для других ошибок просто предупреждаем и продолжаем
+            $this->warn('  ⚠️  Не удалось проверить коммиты: ' . $e->getMessage());
+            $this->line('  ℹ️  Продолжаем деплой...');
+            $this->newLine();
+        }
     }
 
     /**
