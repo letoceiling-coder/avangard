@@ -401,7 +401,8 @@ class BotController extends Controller
         $bot = Bot::findOrFail($id);
         
         try {
-            $webhookUrl = $bot->webhook_url ?: url('/api/telegram/webhook/' . $bot->id);
+            // Всегда используем правильный URL с ID бота, игнорируя сохраненный в БД
+            $webhookUrl = url('/api/telegram/webhook/' . $bot->id);
             
             \Illuminate\Support\Facades\Log::info('🔧 Registering webhook', [
                 'bot_id' => $bot->id,
