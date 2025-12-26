@@ -6,7 +6,7 @@
                 <p class="text-muted-foreground mt-1">Управление Telegram ботами</p>
             </div>
             <button
-                @click="showCreateModal = true"
+                @click="handleCreateClick"
                 class="h-11 px-6 bg-accent/10 backdrop-blur-xl text-accent border border-accent/40 hover:bg-accent/20 rounded-2xl shadow-lg shadow-accent/10 inline-flex items-center justify-center gap-2"
             >
                 <span>+</span>
@@ -33,9 +33,8 @@
             >
                 <div class="flex items-start justify-between mb-4">
                     <div>
-                        <h3 class="text-lg font-semibold text-foreground">{{ bot.name }}</h3>
-                    <p v-if="bot.username" class="text-sm text-muted-foreground">@{{ bot.username }}</p>
-                    <p v-else class="text-sm text-muted-foreground">Username не указан</p>
+                        <h3 class="text-lg font-semibold text-foreground">{{ bot.name || 'Без имени' }}</h3>
+                        <p v-if="bot.username" class="text-sm text-muted-foreground">@{{ bot.username }}</p>
                     </div>
                     <span
                         :class="[
@@ -70,27 +69,27 @@
 
                 <div class="flex flex-wrap gap-2">
                     <button
-                        @click="checkWebhook(bot)"
+                        @click="handleCheckWebhook(bot)"
                         :disabled="checkingWebhook === bot.id"
                         class="flex-1 px-3 py-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-lg transition-colors disabled:opacity-50"
                     >
                         {{ checkingWebhook === bot.id ? 'Проверка...' : 'Проверить webhook' }}
                     </button>
                     <button
-                        @click="registerWebhook(bot)"
+                        @click="handleRegisterWebhook(bot)"
                         :disabled="registeringWebhook === bot.id"
                         class="flex-1 px-3 py-2 text-xs bg-green-500/10 hover:bg-green-500/20 text-green-500 rounded-lg transition-colors disabled:opacity-50"
                     >
                         {{ registeringWebhook === bot.id ? 'Регистрация...' : 'Установить webhook' }}
                     </button>
                     <button
-                        @click="editBot(bot)"
+                        @click="handleEditBot(bot)"
                         class="px-3 py-2 text-xs bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 rounded-lg transition-colors"
                     >
                         Редактировать
                     </button>
                     <button
-                        @click="deleteBot(bot)"
+                        @click="handleDeleteBot(bot)"
                         class="px-3 py-2 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
                     >
                         Удалить
@@ -112,7 +111,7 @@
                         {{ showEditModal ? 'Редактировать бота' : 'Добавить бота' }}
                     </h3>
                 </div>
-                <form @submit.prevent="saveBot" class="p-6 space-y-4">
+                <form @submit.prevent="handleSaveBot" class="p-6 space-y-4">
                     <div>
                         <label class="text-sm font-medium mb-1 block">Название бота *</label>
                         <input
@@ -203,7 +202,7 @@
                     <div class="flex gap-2 pt-4 border-t border-border">
                         <button
                             type="button"
-                            @click="closeModal"
+                            @click="handleCloseModal"
                             class="flex-1 h-10 px-4 border border-border bg-background/50 hover:bg-accent/10 rounded-lg transition-colors"
                         >
                             Отмена
@@ -260,19 +259,58 @@ import { ref, onMounted, computed } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../../utils/api'
 import Swal from 'sweetalert2'
 
+/**
+ * @typedef {Object} Bot
+ * @property {number} id
+ * @property {string} name
+ * @property {string} token
+ * @property {string|null} username
+ * @property {string|null} webhook_url
+ * @property {boolean} webhook_registered
+ * @property {string|null} welcome_message
+ * @property {Object|null} settings
+ * @property {boolean} is_active
+ */
+
+/**
+ * @typedef {Object} WebhookInfo
+ * @property {string|null} url
+ * @property {number} pending_update_count
+ * @property {string|null} last_error_message
+ * @property {number|null} max_connections
+ */
+
 export default {
     name: 'Bots',
     setup() {
+        console.log('[Bots] Component setup started')
+        
+        // State
         const loading = ref(false)
         const saving = ref(false)
         const error = ref(null)
+        /** @type {import('vue').Ref<Bot[]>} */
         const bots = ref([])
         const showCreateModal = ref(false)
         const showEditModal = ref(false)
+        /** @type {import('vue').Ref<number|null>} */
         const checkingWebhook = ref(null)
+        /** @type {import('vue').Ref<number|null>} */
         const registeringWebhook = ref(null)
+        /** @type {import('vue').Ref<WebhookInfo|null>} */
         const webhookInfo = ref(null)
         
+        /** @type {import('vue').Ref<{
+         *   id: number|null,
+         *   name: string,
+         *   token: string,
+         *   welcome_message: string,
+         *   is_active: boolean,
+         *   settings: Object,
+         *   webhook_allowed_updates: string,
+         *   webhook_max_connections: number,
+         *   webhook_secret_token: string
+         * }>} */
         const form = ref({
             id: null,
             name: '',
@@ -288,40 +326,84 @@ export default {
         const settingsJson = computed({
             get: () => {
                 try {
-                    return JSON.stringify(form.value.settings || {}, null, 2)
+                    const settings = form.value.settings || {}
+                    return JSON.stringify(settings, null, 2)
                 } catch (e) {
+                    console.error('[Bots] Error stringifying settings:', e)
                     return '{}'
                 }
             },
             set: (value) => {
                 try {
-                    form.value.settings = JSON.parse(value || '{}')
+                    const parsed = JSON.parse(value || '{}')
+                    form.value.settings = parsed
                 } catch (e) {
-                    console.error('Error parsing JSON:', e)
+                    console.error('[Bots] Error parsing settings JSON:', e)
                 }
             }
         })
 
+        /**
+         * Загрузить список ботов
+         * @returns {Promise<void>}
+         */
         const fetchBots = async () => {
+            console.log('[Bots] fetchBots called')
             loading.value = true
             error.value = null
             try {
+                console.log('[Bots] Making API request to /v1/bots')
                 const response = await apiGet('/v1/bots')
+                console.log('[Bots] API response status:', response.ok, response.status)
+                
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}))
-                    throw new Error(errorData.message || 'Ошибка загрузки ботов')
+                    let errorData = {}
+                    try {
+                        errorData = await response.json()
+                    } catch (e) {
+                        console.error('[Bots] Error parsing error response:', e)
+                    }
+                    const errorMsg = errorData.message || `HTTP ${response.status}: ${response.statusText}`
+                    console.error('[Bots] API error:', errorMsg)
+                    throw new Error(errorMsg)
                 }
+                
                 const data = await response.json()
-                bots.value = data.data || []
+                console.log('[Bots] API response data:', data)
+                
+                if (data && data.data && Array.isArray(data.data)) {
+                    bots.value = data.data
+                    console.log('[Bots] Bots loaded:', data.data.length)
+                } else if (Array.isArray(data)) {
+                    bots.value = data
+                    console.log('[Bots] Bots loaded (array format):', data.length)
+                } else {
+                    bots.value = []
+                    console.warn('[Bots] Unexpected data format:', data)
+                }
             } catch (err) {
-                console.error('Error fetching bots:', err)
+                console.error('[Bots] Error in fetchBots:', err)
                 error.value = err.message || 'Ошибка загрузки ботов'
             } finally {
                 loading.value = false
+                console.log('[Bots] fetchBots completed')
             }
         }
 
-        const editBot = (bot) => {
+        /**
+         * Обработчик клика на создание бота
+         */
+        const handleCreateClick = () => {
+            console.log('[Bots] handleCreateClick')
+            showCreateModal.value = true
+        }
+
+        /**
+         * Редактировать бота
+         * @param {Bot} bot
+         */
+        const handleEditBot = (bot) => {
+            console.log('[Bots] handleEditBot:', bot)
             try {
                 const settings = bot.settings || {}
                 const webhookSettings = settings.webhook || {}
@@ -340,8 +422,9 @@ export default {
                     webhook_secret_token: webhookSettings.secret_token || '',
                 }
                 showEditModal.value = true
+                console.log('[Bots] Edit form initialized')
             } catch (err) {
-                console.error('Error editing bot:', err)
+                console.error('[Bots] Error in handleEditBot:', err)
                 Swal.fire({
                     title: 'Ошибка',
                     text: 'Не удалось загрузить данные бота',
@@ -351,7 +434,12 @@ export default {
             }
         }
 
-        const deleteBot = async (bot) => {
+        /**
+         * Удалить бота
+         * @param {Bot} bot
+         */
+        const handleDeleteBot = async (bot) => {
+            console.log('[Bots] handleDeleteBot:', bot)
             const result = await Swal.fire({
                 title: 'Удалить бота?',
                 html: `Вы уверены, что хотите удалить бота <strong>"${bot.name}"</strong>?`,
@@ -363,14 +451,26 @@ export default {
                 cancelButtonColor: '#6b7280',
             })
 
-            if (!result.isConfirmed) return
+            if (!result.isConfirmed) {
+                console.log('[Bots] Delete cancelled')
+                return
+            }
 
             try {
+                console.log('[Bots] Deleting bot:', bot.id)
                 const response = await apiDelete(`/v1/bots/${bot.id}`)
+                console.log('[Bots] Delete response:', response.ok, response.status)
+                
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}))
+                    let errorData = {}
+                    try {
+                        errorData = await response.json()
+                    } catch (e) {
+                        console.error('[Bots] Error parsing delete error response:', e)
+                    }
                     throw new Error(errorData.message || 'Ошибка удаления бота')
                 }
+                
                 await Swal.fire({
                     title: 'Бот удален',
                     icon: 'success',
@@ -381,7 +481,7 @@ export default {
                 })
                 await fetchBots()
             } catch (err) {
-                console.error('Error deleting bot:', err)
+                console.error('[Bots] Error in handleDeleteBot:', err)
                 Swal.fire({
                     title: 'Ошибка',
                     text: err.message || 'Ошибка удаления бота',
@@ -391,14 +491,18 @@ export default {
             }
         }
 
-        const saveBot = async () => {
+        /**
+         * Сохранить бота
+         */
+        const handleSaveBot = async () => {
+            console.log('[Bots] handleSaveBot called')
             saving.value = true
             error.value = null
             try {
                 const botData = {
-                    name: form.value.name,
-                    token: form.value.token,
-                    welcome_message: form.value.welcome_message || null,
+                    name: form.value.name.trim(),
+                    token: form.value.token.trim(),
+                    welcome_message: form.value.welcome_message?.trim() || null,
                     is_active: form.value.is_active,
                 }
 
@@ -413,8 +517,8 @@ export default {
                     max_connections: form.value.webhook_max_connections || 40,
                 }
                 
-                if (form.value.webhook_secret_token) {
-                    botData.webhook.secret_token = form.value.webhook_secret_token
+                if (form.value.webhook_secret_token?.trim()) {
+                    botData.webhook.secret_token = form.value.webhook_secret_token.trim()
                 }
 
                 if (showEditModal.value) {
@@ -425,15 +529,26 @@ export default {
                     botData.settings = settings
                 }
 
+                console.log('[Bots] Saving bot data:', botData)
+
                 let response
                 if (showEditModal.value) {
+                    console.log('[Bots] Updating bot:', form.value.id)
                     response = await apiPut(`/v1/bots/${form.value.id}`, botData)
                 } else {
+                    console.log('[Bots] Creating bot')
                     response = await apiPost('/v1/bots', botData)
                 }
 
+                console.log('[Bots] Save response:', response.ok, response.status)
+
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}))
+                    let errorData = {}
+                    try {
+                        errorData = await response.json()
+                    } catch (e) {
+                        console.error('[Bots] Error parsing save error response:', e)
+                    }
                     throw new Error(errorData.message || 'Ошибка сохранения бота')
                 }
 
@@ -446,10 +561,10 @@ export default {
                     position: 'top-end'
                 })
 
-                closeModal()
+                handleCloseModal()
                 await fetchBots()
             } catch (err) {
-                console.error('Error saving bot:', err)
+                console.error('[Bots] Error in handleSaveBot:', err)
                 error.value = err.message || 'Ошибка сохранения бота'
                 Swal.fire({
                     title: 'Ошибка',
@@ -459,21 +574,37 @@ export default {
                 })
             } finally {
                 saving.value = false
+                console.log('[Bots] handleSaveBot completed')
             }
         }
 
-        const checkWebhook = async (bot) => {
+        /**
+         * Проверить webhook
+         * @param {Bot} bot
+         */
+        const handleCheckWebhook = async (bot) => {
+            console.log('[Bots] handleCheckWebhook:', bot)
             checkingWebhook.value = bot.id
             try {
+                console.log('[Bots] Checking webhook for bot:', bot.id)
                 const response = await apiGet(`/v1/bots/${bot.id}/check-webhook`)
+                console.log('[Bots] Check webhook response:', response.ok, response.status)
+                
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}))
+                    let errorData = {}
+                    try {
+                        errorData = await response.json()
+                    } catch (e) {
+                        console.error('[Bots] Error parsing check webhook error response:', e)
+                    }
                     throw new Error(errorData.message || 'Ошибка проверки webhook')
                 }
+                
                 const data = await response.json()
+                console.log('[Bots] Webhook info:', data)
                 webhookInfo.value = data.data?.data || data.data || {}
             } catch (err) {
-                console.error('Error checking webhook:', err)
+                console.error('[Bots] Error in handleCheckWebhook:', err)
                 Swal.fire({
                     title: 'Ошибка',
                     text: err.message || 'Ошибка проверки webhook',
@@ -485,15 +616,30 @@ export default {
             }
         }
 
-        const registerWebhook = async (bot) => {
+        /**
+         * Зарегистрировать webhook
+         * @param {Bot} bot
+         */
+        const handleRegisterWebhook = async (bot) => {
+            console.log('[Bots] handleRegisterWebhook:', bot)
             registeringWebhook.value = bot.id
             try {
+                console.log('[Bots] Registering webhook for bot:', bot.id)
                 const response = await apiPost(`/v1/bots/${bot.id}/register-webhook`)
+                console.log('[Bots] Register webhook response:', response.ok, response.status)
+                
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}))
+                    let errorData = {}
+                    try {
+                        errorData = await response.json()
+                    } catch (e) {
+                        console.error('[Bots] Error parsing register webhook error response:', e)
+                    }
                     throw new Error(errorData.message || 'Ошибка регистрации webhook')
                 }
+                
                 const data = await response.json()
+                console.log('[Bots] Register webhook result:', data)
                 
                 await Swal.fire({
                     title: data.success ? 'Webhook установлен' : 'Ошибка',
@@ -504,7 +650,7 @@ export default {
                 
                 await fetchBots()
             } catch (err) {
-                console.error('Error registering webhook:', err)
+                console.error('[Bots] Error in handleRegisterWebhook:', err)
                 Swal.fire({
                     title: 'Ошибка',
                     text: err.message || 'Ошибка регистрации webhook',
@@ -516,7 +662,11 @@ export default {
             }
         }
 
-        const closeModal = () => {
+        /**
+         * Закрыть модальное окно
+         */
+        const handleCloseModal = () => {
+            console.log('[Bots] handleCloseModal')
             showCreateModal.value = false
             showEditModal.value = false
             form.value = {
@@ -533,10 +683,13 @@ export default {
         }
 
         onMounted(() => {
+            console.log('[Bots] Component mounted, fetching bots')
             fetchBots().catch(err => {
-                console.error('Error in onMounted:', err)
+                console.error('[Bots] Error in onMounted fetchBots:', err)
             })
         })
+
+        console.log('[Bots] Component setup completed')
 
         return {
             loading,
@@ -550,12 +703,13 @@ export default {
             checkingWebhook,
             registeringWebhook,
             webhookInfo,
-            editBot,
-            deleteBot,
-            saveBot,
-            checkWebhook,
-            registerWebhook,
-            closeModal,
+            handleCreateClick,
+            handleEditBot,
+            handleDeleteBot,
+            handleSaveBot,
+            handleCheckWebhook,
+            handleRegisterWebhook,
+            handleCloseModal,
         }
     }
 }
