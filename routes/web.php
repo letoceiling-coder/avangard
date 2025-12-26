@@ -90,6 +90,81 @@ Route::get('/assets/{path}', function ($path) {
     ]);
 })->where('path', '.+')->name('react.assets');
 
+// Проксирование assets для Vue админки (build/assets/*)
+Route::get('/build/assets/{path}', function ($path) {
+    // Безопасно получаем имя файла (защита от path traversal)
+    $fileName = basename($path);
+    $filePath = public_path('build/assets/' . $fileName);
+    
+    // Проверяем существование файла
+    if (!file_exists($filePath) || !is_file($filePath)) {
+        abort(404, "File not found: {$fileName}");
+    }
+    
+    // Определяем MIME тип по расширению
+    $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+    $mimeTypes = [
+        'js' => 'application/javascript; charset=utf-8',
+        'mjs' => 'application/javascript; charset=utf-8',
+        'css' => 'text/css; charset=utf-8',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'svg' => 'image/svg+xml',
+        'webp' => 'image/webp',
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf' => 'font/ttf',
+        'eot' => 'application/vnd.ms-fontobject',
+    ];
+    
+    $mimeType = $mimeTypes[$extension] ?? mime_content_type($filePath);
+    
+    return response()->file($filePath, [
+        'Content-Type' => $mimeType,
+        'Cache-Control' => 'public, max-age=31536000',
+    ]);
+})->where('path', '.+')->name('build.assets');
+
+// Проксирование assets для Vue админки (build/assets/*)
+// Должно быть ДО catch-all роутов
+Route::get('/build/assets/{path}', function ($path) {
+    // Безопасно получаем имя файла (защита от path traversal)
+    $fileName = basename($path);
+    $filePath = public_path('build/assets/' . $fileName);
+    
+    // Проверяем существование файла
+    if (!file_exists($filePath) || !is_file($filePath)) {
+        abort(404, "File not found: {$fileName}");
+    }
+    
+    // Определяем MIME тип по расширению
+    $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+    $mimeTypes = [
+        'js' => 'application/javascript; charset=utf-8',
+        'mjs' => 'application/javascript; charset=utf-8',
+        'css' => 'text/css; charset=utf-8',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'svg' => 'image/svg+xml',
+        'webp' => 'image/webp',
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf' => 'font/ttf',
+        'eot' => 'application/vnd.ms-fontobject',
+    ];
+    
+    $mimeType = $mimeTypes[$extension] ?? mime_content_type($filePath);
+    
+    return response()->file($filePath, [
+        'Content-Type' => $mimeType,
+        'Cache-Control' => 'public, max-age=31536000',
+    ]);
+})->where('path', '.+')->name('build.assets');
+
 // Страница истечения подписки (должна быть до админ-панели)
 Route::get('/subscription-expired', [\App\Http\Controllers\SubscriptionExpiredController::class, 'index'])
     ->name('subscription.expired');
