@@ -398,9 +398,17 @@ class DeployController extends Controller
             }
             Log::info("🔍 HOME директория: {$homeDir}");
 
-            // Формируем команду: всегда используем просто 'composer', так как директория добавляется в PATH
-            // Это обходит проблемы с правами доступа при чтении файла напрямую
-            $command = "composer install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+            // Формируем команду
+            // Если найден полный путь, используем PHP для его выполнения (обходит проблемы с правами)
+            // Если это просто 'composer', используем команду напрямую
+            if (!empty($composerPath) && $composerPath !== 'composer' && strpos($composerPath, '/') !== false) {
+                // Полный путь найден - используем PHP для выполнения composer скрипта
+                $escapedPath = escapeshellarg($composerPath);
+                $command = "{$this->phpPath} {$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+            } else {
+                // Используем команду composer напрямую
+                $command = "composer install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+            }
             Log::info("🔍 Команда composer: {$command}");
 
             // Подготавливаем переменные окружения
