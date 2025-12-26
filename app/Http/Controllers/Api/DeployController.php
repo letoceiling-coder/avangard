@@ -411,15 +411,12 @@ class DeployController extends Controller
             Log::info("🔍 Команда composer: {$command}");
 
             // Подготавливаем переменные окружения
+            // HOME уже установлен выше в $homeDir
             $env = [
                 'HOME' => $homeDir,
                 'COMPOSER_HOME' => $homeDir . '/.composer',
                 'COMPOSER_DISABLE_XDEBUG_WARN' => '1',
             ];
-            
-            // Устанавливаем HOME в домашнюю директорию пользователя проекта для composer
-            // Это важно для правильной работы composer
-            $env['HOME'] = dirname(dirname($this->basePath)); // /home/d/dsc23ytp
             $env['COMPOSER_HOME'] = $env['HOME'] . '/.composer';
             
             $process = Process::path($this->basePath)
