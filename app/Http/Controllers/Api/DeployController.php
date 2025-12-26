@@ -403,12 +403,28 @@ class DeployController extends Controller
                 // Если путь не найден или это просто 'composer', используем composer как команду напрямую
                 $command = "composer install --no-dev --optimize-autoloader --no-interaction --no-scripts";
             } else {
-                // Если найден полный путь, используем PHP для выполнения (composer - это PHP скрипт с shebang)
-                // Используем PHP напрямую, чтобы избежать проблем с правами доступа при выполнении через веб-сервер
+                // Если найден полный путь, используем composer напрямую (он сам обработает shebang)
+                // Пробуем запустить через sudo -u для правильного пользователя, если нужно
+                // Но сначала попробуем просто напрямую
                 $escapedPath = escapeshellarg($composerPath);
                 
-                // Запускаем composer через PHP, указывая полный путь к PHP и к composer
-                $command = "{$this->phpPath} {$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+                // Проверяем, можем ли мы прочитать файл
+                if (!is_readable($composerPath)) {
+                    // Если файл не читается, пробуем запустить от пользователя, которому принадлежит файл
+                    $fileOwner = posix_getpwuid(fileowner($composerPath));
+                    $ownerName = $fileOwner['name'] ?? null;
+                    
+                    if ($ownerName) {
+                        Log::info("Composer файл принадлежит пользователю: {$ownerName}, запускаем через sudo");
+                        $command = "sudo -u " . escapeshellarg($ownerName) . " {$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+                    } else {
+                        // Если не можем определить владельца, пробуем через PHP
+                        $command = "{$this->phpPath} {$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+                    }
+                } else {
+                    // Файл читается, пробуем запустить напрямую
+                    $command = "{$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+                }
             }
             Log::info("🔍 Команда composer: {$command}");
 
@@ -458,7 +474,21 @@ class DeployController extends Controller
      */
     protected function getComposerPath(): string
     {
-        // 1. Проверить явно указанный путь в .env (приоритет!)
+        // 1. Попробовать найти composer через which (работает лучше всего через веб-сервер)
+        try {
+            $whichProcess = Process::run('which composer 2>&1');
+            if ($whichProcess->successful()) {
+                $foundPath = trim($whichProcess->output());
+                if ($foundPath && $foundPath !== 'composer' && file_exists($foundPath)) {
+                    Log::info("Composer найден через which: {$foundPath}");
+                    return $foundPath;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning("Ошибка при поиске composer через which: " . $e->getMessage());
+        }
+
+        // 2. Проверить явно указанный путь в .env
         $composerPath = env('COMPOSER_PATH');
         if ($composerPath && $composerPath !== '' && $composerPath !== 'composer') {
             // Если путь указан явно, используем его без проверки (пользователь знает что делает)
