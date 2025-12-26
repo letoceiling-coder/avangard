@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Перенаправляем все запросы в директорию public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ /public/$1 [L]
+    
+    # Если запрашивается корень, перенаправляем в public/
+    RewriteCond %{REQUEST_URI} ^/$
+    RewriteRule ^(.*)$ /public/ [L]
+</IfModule>
+
