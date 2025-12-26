@@ -408,7 +408,8 @@ class DeployController extends Controller
                 $escapedPath = escapeshellarg($composerPath);
                 
                 // Используем bash -c для выполнения, чтобы правильно обработать shebang
-                $command = "bash -c {$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts";
+                // Объединяем команду в одну строку для bash -c
+                $command = "bash -c " . escapeshellarg("{$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts");
             }
             Log::info("🔍 Команда composer: {$command}");
 
