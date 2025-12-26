@@ -261,6 +261,12 @@ const routes = [
                 component: () => import('./pages/admin/SupportTicket.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Тикет поддержки', parent: 'admin.support' },
             },
+            {
+                path: 'bots',
+                name: 'admin.bots',
+                component: () => import('./pages/admin/Bots.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Боты' },
+            },
         ],
     },
 ];

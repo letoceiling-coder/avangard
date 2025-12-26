@@ -108,6 +108,12 @@ class AdminMenu
                 ],
             ],
             [
+                'title' => 'Боты',
+                'route' => 'admin.bots',
+                'icon' => 'bot',
+                'roles' => ['admin'],
+            ],
+            [
                 'title' => 'Конфигурации',
                 'icon' => 'settings',
                 'roles' => ['admin'],

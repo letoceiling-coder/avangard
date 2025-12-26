@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\DeployController;
 use App\Http\Controllers\Api\SupportController;
+use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +54,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('admin')->group(function () {
             Route::apiResource('roles', RoleController::class);
             Route::apiResource('users', UserController::class);
+            
+            // Bots management
+            Route::apiResource('bots', BotController::class);
+            Route::get('bots/{id}/check-webhook', [BotController::class, 'checkWebhook']);
+            Route::post('bots/{id}/register-webhook', [BotController::class, 'registerWebhook']);
             
             // Support tickets
             Route::get('support/tickets', [SupportController::class, 'index']);
