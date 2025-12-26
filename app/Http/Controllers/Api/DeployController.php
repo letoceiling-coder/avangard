@@ -399,9 +399,17 @@ class DeployController extends Controller
             Log::info("🔍 HOME директория: {$homeDir}");
 
             // Формируем команду
-            // На Beget веб-сервер работает от пользователя сайта, поэтому используем просто команду composer
-            // Директория composer уже добавлена в PATH, поэтому команда должна быть найдена
-            $command = "composer install --no-dev --optimize-autoloader --no-interaction --no-scripts 2>&1";
+            // На Beget веб-сервер не может выполнить composer напрямую из-за прав доступа
+            // Используем PHP для выполнения composer скрипта по полному пути
+            if (!empty($composerPath) && $composerPath !== 'composer' && strpos($composerPath, '/') !== false) {
+                // Используем полный путь к composer через PHP
+                $escapedPath = escapeshellarg($composerPath);
+                $command = "{$this->phpPath} {$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts 2>&1";
+                Log::info("🔍 Используем PHP для выполнения composer: {$this->phpPath} {$escapedPath}");
+            } else {
+                // Если путь не найден, пробуем команду composer (может не сработать из-за прав)
+                $command = "composer install --no-dev --optimize-autoloader --no-interaction --no-scripts 2>&1";
+            }
             Log::info("🔍 Команда composer: {$command}");
 
             // Подготавливаем переменные окружения
@@ -411,16 +419,10 @@ class DeployController extends Controller
                 'COMPOSER_DISABLE_XDEBUG_WARN' => '1',
             ];
             
-            // Если composer найден по полному пути, добавляем его директорию в PATH
-            // Это позволит использовать просто команду 'composer' вместо полного пути
-            if (!empty($composerPath) && $composerPath !== 'composer' && strpos($composerPath, '/') !== false) {
-                $composerDir = dirname($composerPath);
-                $currentPath = getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin';
-                // Добавляем в начало PATH, чтобы приоритет был выше
-                $env['PATH'] = $composerDir . ':' . $currentPath;
-                Log::info("🔍 Добавлена директория composer в PATH: {$composerDir}");
-                Log::info("🔍 Полный PATH: {$env['PATH']}");
-            }
+            // Устанавливаем HOME в домашнюю директорию пользователя проекта для composer
+            // Это важно для правильной работы composer
+            $env['HOME'] = dirname(dirname($this->basePath)); // /home/d/dsc23ytp
+            $env['COMPOSER_HOME'] = $env['HOME'] . '/.composer';
             
             $process = Process::path($this->basePath)
                 ->timeout(600) // 10 минут
