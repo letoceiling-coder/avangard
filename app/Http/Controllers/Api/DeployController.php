@@ -463,9 +463,13 @@ class DeployController extends Controller
             $whichProcess = Process::run('which composer 2>&1');
             if ($whichProcess->successful()) {
                 $foundPath = trim($whichProcess->output());
-                if ($foundPath && $foundPath !== 'composer' && file_exists($foundPath)) {
-                    Log::info("Composer найден через which: {$foundPath}");
-                    return $foundPath;
+                if ($foundPath && $foundPath !== 'composer') {
+                    // Проверяем через test -f, так как file_exists может не работать через веб-сервер
+                    $testProcess = Process::run("test -f " . escapeshellarg($foundPath) . " && echo 'exists' 2>&1");
+                    if ($testProcess->successful() && trim($testProcess->output()) === 'exists') {
+                        Log::info("Composer найден через which: {$foundPath}");
+                        return $foundPath;
+                    }
                 }
             }
         } catch (\Exception $e) {
@@ -475,10 +479,12 @@ class DeployController extends Controller
         // 2. Проверить явно указанный путь в .env
         $composerPath = env('COMPOSER_PATH');
         if ($composerPath && $composerPath !== '' && $composerPath !== 'composer') {
-            // Если путь указан явно, используем его без проверки (пользователь знает что делает)
-            // Проверка существования будет при попытке выполнения команды
-            Log::info("Composer путь из .env: {$composerPath}");
-            return $composerPath;
+            // Обрезаем пробелы и проверяем, что путь не пустой
+            $composerPath = trim($composerPath);
+            if ($composerPath) {
+                Log::info("Composer путь из .env: {$composerPath}");
+                return $composerPath;
+            }
         }
 
         // 3. Проверить локальный composer в директории проекта
