@@ -399,27 +399,9 @@ class DeployController extends Controller
             Log::info("🔍 HOME директория: {$homeDir}");
 
             // Формируем команду
-            // Если найден полный путь, используем sudo -u для запуска от правильного пользователя
-            // Это обходит проблемы с правами доступа при работе через веб-сервер от root
-            if (!empty($composerPath) && $composerPath !== 'composer' && strpos($composerPath, '/') !== false) {
-                // Полный путь найден - определяем владельца и запускаем от него
-                // Извлекаем имя пользователя из пути (например, /home/d/dsc23ytp/bin/composer -> dsc23ytp)
-                $pathParts = explode('/', trim($composerPath, '/'));
-                $ownerUser = 'dsc23ytp'; // По умолчанию, если не удастся определить
-                
-                // Пытаемся определить пользователя из пути
-                if (count($pathParts) >= 3 && $pathParts[0] === 'home' && isset($pathParts[2])) {
-                    $ownerUser = $pathParts[2];
-                }
-                
-                // Используем sudo -u для запуска от правильного пользователя
-                $escapedPath = escapeshellarg($composerPath);
-                $command = "sudo -u " . escapeshellarg($ownerUser) . " {$this->phpPath} {$escapedPath} install --no-dev --optimize-autoloader --no-interaction --no-scripts 2>&1";
-                Log::info("🔍 Используем sudo -u {$ownerUser} для выполнения composer: {$this->phpPath} {$escapedPath}");
-            } else {
-                // Используем команду composer напрямую (она должна быть в PATH)
-                $command = "composer install --no-dev --optimize-autoloader --no-interaction --no-scripts";
-            }
+            // На Beget веб-сервер работает от пользователя сайта, поэтому используем просто команду composer
+            // Директория composer уже добавлена в PATH, поэтому команда должна быть найдена
+            $command = "composer install --no-dev --optimize-autoloader --no-interaction --no-scripts 2>&1";
             Log::info("🔍 Команда composer: {$command}");
 
             // Подготавливаем переменные окружения
@@ -434,8 +416,10 @@ class DeployController extends Controller
             if (!empty($composerPath) && $composerPath !== 'composer' && strpos($composerPath, '/') !== false) {
                 $composerDir = dirname($composerPath);
                 $currentPath = getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin';
+                // Добавляем в начало PATH, чтобы приоритет был выше
                 $env['PATH'] = $composerDir . ':' . $currentPath;
                 Log::info("🔍 Добавлена директория composer в PATH: {$composerDir}");
+                Log::info("🔍 Полный PATH: {$env['PATH']}");
             }
             
             $process = Process::path($this->basePath)
