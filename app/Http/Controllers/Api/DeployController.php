@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+// Test deploy - проверка автоматического деплоя через GitHub Actions
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
