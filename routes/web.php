@@ -53,8 +53,8 @@ Route::get('/storage/{path}', function ($path) {
 // Они определены в routes/api.php
 
 // Проксирование assets для React приложения - должно быть ПЕРВЫМ
-// Если запрашивается /assets/*, отдаем из /frontend/assets/*
-Route::get('/assets/{path}', function ($path) {
+// Обрабатываем оба варианта: /assets/* и /frontend/assets/*
+$serveAssets = function ($path) {
     // Безопасно получаем имя файла (защита от path traversal)
     $fileName = basename($path);
     $filePath = public_path('frontend/assets/' . $fileName);
@@ -88,7 +88,12 @@ Route::get('/assets/{path}', function ($path) {
         'Content-Type' => $mimeType,
         'Cache-Control' => 'public, max-age=31536000',
     ]);
-})->where('path', '.+')->name('react.assets');
+};
+
+// Роут для /assets/* (совместимость)
+Route::get('/assets/{path}', $serveAssets)->where('path', '.+')->name('react.assets.short');
+// Роут для /frontend/assets/*
+Route::get('/frontend/assets/{path}', $serveAssets)->where('path', '.+')->name('react.assets');
 
 // Проксирование assets для Vue админки (build/assets/*)
 Route::get('/build/assets/{path}', function ($path) {

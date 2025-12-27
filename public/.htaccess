@@ -26,6 +26,17 @@
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^storage/(.*)$ storage/$1 [L]
 
+    # Обработка запросов к /frontend/assets - отдаем напрямую если файл существует
+    # Важно: проверяем существование файла относительно public директории
+    RewriteCond %{REQUEST_URI} ^/frontend/assets/
+    RewriteCond %{DOCUMENT_ROOT}/frontend/assets/$1 -f
+    RewriteRule ^frontend/assets/(.*)$ frontend/assets/$1 [L]
+
+    # Обработка запросов к /build/assets - отдаем напрямую если файл существует
+    RewriteCond %{REQUEST_URI} ^/build/assets/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^build/assets/(.*)$ build/assets/$1 [L]
+
     # Если файл не найден или запрос к /storage - передаем в Laravel
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d

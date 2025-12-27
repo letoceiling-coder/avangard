@@ -1,0 +1,16 @@
+# .htaccess для корня public_html
+# Этот файл нужно разместить в ~/trendagent.siteaccess.ru/public_html/.htaccess
+# Он перенаправляет запросы к assets и favicon в поддиректорию avangard-react
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  
+  # Редирект запросов к assets в avangard-react
+  RewriteCond %{REQUEST_URI} ^/assets/(.*)$
+  RewriteRule ^assets/(.*)$ /avangard-react/assets/$1 [L]
+  
+  # Редирект favicon
+  RewriteCond %{REQUEST_URI} ^/favicon\.ico$
+  RewriteRule ^favicon\.ico$ /avangard-react/favicon.ico [L]
+</IfModule>
+
