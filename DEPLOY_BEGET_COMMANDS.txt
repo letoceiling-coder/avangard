@@ -1,0 +1,76 @@
+# ============================================
+# Команды для развертывания на Beget
+# Репозиторий: https://github.com/letoceiling-coder/avangard
+# Вы находитесь в: ~/trendagent.siteaccess.ru/public_html
+# ============================================
+
+# 1. Клонирование или обновление проекта
+[ -d .git ] && git pull origin main || git clone https://github.com/letoceiling-coder/avangard.git .
+
+# 2. Установка PHP зависимостей
+composer install --no-dev --optimize-autoloader
+
+# 3. Установка Node.js зависимостей для Laravel (нужны dev зависимости для сборки)
+npm install
+
+# 4. Установка зависимостей и сборка React приложения
+cd frontend
+npm install
+npm run build
+cd ..
+
+# 5. Сборка Laravel assets (Vue админка)
+npm run build
+
+# 5.1. (Опционально) Удаление dev зависимостей после сборки для экономии места
+# npm prune --production
+# cd frontend && npm prune --production && cd ..
+
+# 6. Создание .env файла (если его нет)
+[ -f .env ] || cp .env.example .env
+
+# 7. ВАЖНО: Отредактируйте .env файл!
+# nano .env
+# Установите:
+# - DB_DATABASE=ваша_база_данных
+# - DB_USERNAME=ваш_пользователь
+# - DB_PASSWORD=ваш_пароль
+# - APP_ENV=production
+# - APP_DEBUG=false
+# - APP_URL=https://trendagent.siteaccess.ru
+
+# 8. Генерация ключа приложения
+php artisan key:generate --force
+
+# 9. Запуск миграций
+php artisan migrate --force
+
+# 10. Кеширование для оптимизации
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 11. Настройка прав доступа
+chmod -R 775 storage bootstrap/cache
+chmod -R 755 public
+
+# ============================================
+# Готово! Проверьте сайт: https://trendagent.siteaccess.ru
+# ============================================
+
+# ============================================
+# АЛЬТЕРНАТИВНЫЙ ВАРИАНТ (если DocumentRoot на корень, а не на public):
+# Выполните шаги 1-5, затем:
+# ============================================
+# cp -r public/* .
+# cp public/.htaccess .
+# sed -i "s|__DIR__.'/../|__DIR__.'/../|g" index.php
+# [ -f .env ] || cp .env.example .env
+# php artisan key:generate --force
+# php artisan migrate --force
+# php artisan config:cache
+# php artisan route:cache
+# php artisan view:cache
+# chmod -R 775 storage bootstrap/cache
+# chmod -R 755 .
+

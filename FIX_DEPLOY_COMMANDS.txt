@@ -1,0 +1,48 @@
+# ============================================
+# Команды для исправления развертывания на Beget
+# Вы уже выполнили клонирование и установку зависимостей
+# ============================================
+
+# 1. Обновить код с исправленной миграцией
+git pull origin main
+
+# 2. Убедиться, что установлены все npm зависимости (без --production для сборки)
+npm install
+
+# 3. Установить зависимости для React и собрать
+cd frontend
+npm install
+npm run build
+cd ..
+
+# 4. Собрать Laravel assets (Vue админка)
+npm run build
+
+# 5. Проверить/создать .env файл
+[ -f .env ] || cp .env.example .env
+
+# 6. ВАЖНО: Настроить .env файл для MySQL
+# Откройте .env и убедитесь, что указано:
+# DB_CONNECTION=mysql
+# DB_HOST=localhost (или адрес от Beget)
+# DB_PORT=3306
+# DB_DATABASE=ваша_база_данных
+# DB_USERNAME=ваш_пользователь
+# DB_PASSWORD=ваш_пароль
+nano .env
+
+# 7. Очистить кеш конфигурации (чтобы применились изменения .env)
+php artisan config:clear
+
+# 8. Запустить миграции снова (теперь должна работать с MySQL)
+php artisan migrate --force
+
+# 9. Кеширование для оптимизации
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 10. Настройка прав доступа
+chmod -R 775 storage bootstrap/cache
+chmod -R 755 public
+

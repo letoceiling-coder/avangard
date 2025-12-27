@@ -249,6 +249,12 @@ const routes = [
                 name: 'admin.notifications',
                 component: () => import('./pages/admin/Notifications.vue'),
             },
+            {
+                path: 'trendsso-parser',
+                name: 'admin.trendsso-parser',
+                component: () => import('./pages/admin/TrendSsoParser.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'] },
+            },
         ],
     },
 ];

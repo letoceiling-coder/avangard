@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
+use App\Http\Controllers\Api\TrendSsoController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -134,4 +135,10 @@ Route::post('/logs/clear', [\App\Http\Controllers\LogController::class, 'clearLo
 Route::post('/telegram/webhook/{id}', [BotController::class, 'handleWebhook'])
     ->where('id', '[0-9]+')
     ->name('telegram.webhook');
+
+// Trend SSO Parser API
+Route::prefix('trendsso')->group(function () {
+    Route::post('/authenticate', [TrendSsoController::class, 'authenticate']);
+    Route::post('/objects-list', [TrendSsoController::class, 'getObjectsList']);
+});
 

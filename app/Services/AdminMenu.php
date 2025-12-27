@@ -47,6 +47,12 @@ class AdminMenu
                 'roles' => ['admin'],
             ],
             [
+                'title' => 'Парсер Trend SSO',
+                'route' => 'admin.trendsso-parser',
+                'icon' => 'link',
+                'roles' => ['admin'],
+            ],
+            [
                 'title' => 'Подписка',
                 'route' => 'admin.subscription',
                 'icon' => 'credit-card',
