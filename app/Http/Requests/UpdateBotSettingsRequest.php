@@ -62,44 +62,48 @@ class UpdateBotSettingsRequest extends FormRequest
                 'max:4096',
             ],
             
-            // Тексты сообщений
-            'messages' => [
+            // Settings (обертка для messages и other_settings)
+            'settings' => [
                 'nullable',
                 'array',
             ],
-            'messages.subscription' => ['nullable', 'array'],
-            'messages.subscription.required_text' => ['nullable', 'string', 'max:1000'],
-            'messages.subscription.subscribe_button' => ['nullable', 'string', 'max:100'],
-            'messages.subscription.check_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages' => [
+                'nullable',
+                'array',
+            ],
+            'settings.messages.subscription' => ['nullable', 'array'],
+            'settings.messages.subscription.required_text' => ['nullable', 'string', 'max:1000'],
+            'settings.messages.subscription.subscribe_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages.subscription.check_button' => ['nullable', 'string', 'max:100'],
             
-            'messages.consultation' => ['nullable', 'array'],
-            'messages.consultation.description' => ['nullable', 'string', 'max:2000'],
-            'messages.consultation.form_name_label' => ['nullable', 'string', 'max:200'],
-            'messages.consultation.form_phone_label' => ['nullable', 'string', 'max:200'],
-            'messages.consultation.form_description_label' => ['nullable', 'string', 'max:300'],
-            'messages.consultation.thank_you' => ['nullable', 'string', 'max:500'],
-            'messages.consultation.start_button' => ['nullable', 'string', 'max:100'],
-            'messages.consultation.skip_description_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages.consultation' => ['nullable', 'array'],
+            'settings.messages.consultation.description' => ['nullable', 'string', 'max:2000'],
+            'settings.messages.consultation.form_name_label' => ['nullable', 'string', 'max:200'],
+            'settings.messages.consultation.form_phone_label' => ['nullable', 'string', 'max:200'],
+            'settings.messages.consultation.form_description_label' => ['nullable', 'string', 'max:300'],
+            'settings.messages.consultation.thank_you' => ['nullable', 'string', 'max:500'],
+            'settings.messages.consultation.start_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages.consultation.skip_description_button' => ['nullable', 'string', 'max:100'],
             
-            'messages.materials' => ['nullable', 'array'],
-            'messages.materials.list_description' => ['nullable', 'string', 'max:2000'],
-            'messages.materials.download_button' => ['nullable', 'string', 'max:100'],
-            'messages.materials.back_to_list' => ['nullable', 'string', 'max:100'],
+            'settings.messages.materials' => ['nullable', 'array'],
+            'settings.messages.materials.list_description' => ['nullable', 'string', 'max:2000'],
+            'settings.messages.materials.download_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages.materials.back_to_list' => ['nullable', 'string', 'max:100'],
             
-            'messages.menu' => ['nullable', 'array'],
-            'messages.menu.materials_button' => ['nullable', 'string', 'max:100'],
-            'messages.menu.consultation_button' => ['nullable', 'string', 'max:100'],
-            'messages.menu.review_button' => ['nullable', 'string', 'max:100'],
-            'messages.menu.back_to_menu' => ['nullable', 'string', 'max:100'],
+            'settings.messages.menu' => ['nullable', 'array'],
+            'settings.messages.menu.materials_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages.menu.consultation_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages.menu.review_button' => ['nullable', 'string', 'max:100'],
+            'settings.messages.menu.back_to_menu' => ['nullable', 'string', 'max:100'],
             
-            'messages.notifications' => ['nullable', 'array'],
-            'messages.notifications.consultation_template' => ['nullable', 'string', 'max:2000'],
+            'settings.messages.notifications' => ['nullable', 'array'],
+            'settings.messages.notifications.consultation_template' => ['nullable', 'string', 'max:2000'],
             
             // Дополнительные настройки
-            'other_settings' => ['nullable', 'array'],
-            'other_settings.phone_validation_strict' => ['nullable', 'boolean'],
-            'other_settings.max_description_length' => ['nullable', 'integer', 'min:10', 'max:5000'],
-            'other_settings.subscription_check_timeout' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'settings.other_settings' => ['nullable', 'array'],
+            'settings.other_settings.phone_validation_strict' => ['nullable', 'boolean'],
+            'settings.other_settings.max_description_length' => ['nullable', 'integer', 'min:10', 'max:5000'],
+            'settings.other_settings.subscription_check_timeout' => ['nullable', 'integer', 'min:1', 'max:30'],
         ];
     }
 
@@ -117,11 +121,11 @@ class UpdateBotSettingsRequest extends FormRequest
             'yandex_maps_url.url' => 'Некорректный URL',
             'yandex_maps_url.regex' => 'Ссылка должна вести на Яндекс Карты',
             'welcome_message.max' => 'Приветственное сообщение не должно превышать 4096 символов',
-            'messages.*.max' => 'Текст сообщения слишком длинный',
-            'other_settings.max_description_length.min' => 'Минимальная длина описания: 10 символов',
-            'other_settings.max_description_length.max' => 'Максимальная длина описания: 5000 символов',
-            'other_settings.subscription_check_timeout.min' => 'Минимальный таймаут: 1 секунда',
-            'other_settings.subscription_check_timeout.max' => 'Максимальный таймаут: 30 секунд',
+            'settings.messages.*.*.max' => 'Текст сообщения слишком длинный',
+            'settings.other_settings.max_description_length.min' => 'Минимальная длина описания: 10 символов',
+            'settings.other_settings.max_description_length.max' => 'Максимальная длина описания: 5000 символов',
+            'settings.other_settings.subscription_check_timeout.min' => 'Минимальный таймаут: 1 секунда',
+            'settings.other_settings.subscription_check_timeout.max' => 'Максимальный таймаут: 30 секунд',
         ];
     }
 }

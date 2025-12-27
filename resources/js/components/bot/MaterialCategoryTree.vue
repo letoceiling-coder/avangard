@@ -92,16 +92,41 @@
                 Категории не найдены. Создайте первую категорию.
             </div>
         </div>
+
+        <!-- Create Category Modal -->
+        <div v-if="showCategoryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div class="bg-background border border-border rounded-lg shadow-2xl w-full max-w-md">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold mb-4">Создать категорию</h3>
+                    <button
+                        @click="createCategory"
+                        class="w-full h-10 px-4 bg-accent/10 backdrop-blur-xl text-accent border border-accent/40 hover:bg-accent/20 rounded-lg"
+                    >
+                        Открыть форму создания
+                    </button>
+                    <button
+                        @click="showCategoryModal = false"
+                        class="w-full mt-2 h-10 px-4 border border-border bg-background/50 hover:bg-accent/10 rounded-lg"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script>
 import { ref, onMounted } from 'vue'
-import { apiGet, apiDelete } from '../../utils/api'
+import { apiGet, apiDelete, apiPut, apiPost } from '../../utils/api'
 import Swal from 'sweetalert2'
+import MaterialForm from './MaterialForm.vue'
 
 export default {
     name: 'MaterialCategoryTree',
+    components: {
+        MaterialForm,
+    },
     props: {
         botId: {
             type: [String, Number],
@@ -112,6 +137,9 @@ export default {
         const loading = ref(false)
         const categories = ref([])
         const showCategoryModal = ref(false)
+        const showMaterialForm = ref(false)
+        const selectedCategory = ref(null)
+        const selectedMaterial = ref(null)
 
         const fetchCategories = async () => {
             loading.value = true
@@ -223,42 +251,78 @@ export default {
             }
         }
 
-        const editCategory = (category) => {
-            // TODO: Реализовать редактирование категории
-            Swal.fire({
-                title: 'В разработке',
-                text: 'Редактирование категорий будет доступно в следующей версии',
-                icon: 'info',
+        const editCategory = async (category) => {
+            const { value: formValues } = await Swal.fire({
+                title: 'Редактировать категорию',
+                html: `
+                    <input id="swal-name" class="swal2-input" placeholder="Название" value="${category.name}">
+                    <textarea id="swal-description" class="swal2-textarea" placeholder="Описание">${category.description || ''}</textarea>
+                    <input id="swal-order" class="swal2-input" type="number" placeholder="Порядок" value="${category.order_index}">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Сохранить',
+                cancelButtonText: 'Отмена',
+                preConfirm: () => {
+                    return {
+                        name: document.getElementById('swal-name').value,
+                        description: document.getElementById('swal-description').value,
+                        order_index: parseInt(document.getElementById('swal-order').value) || 0,
+                    }
+                },
             })
+
+            if (formValues) {
+                try {
+                    const response = await apiPut(`/bot-management/${props.botId}/materials/categories/${category.id}`, formValues)
+                    if (!response.ok) {
+                        throw new Error('Ошибка обновления категории')
+                    }
+
+                    await Swal.fire({
+                        title: 'Сохранено',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end',
+                    })
+
+                    fetchCategories()
+                } catch (err) {
+                    Swal.fire({
+                        title: 'Ошибка',
+                        text: err.message || 'Ошибка обновления категории',
+                        icon: 'error',
+                    })
+                }
+            }
         }
 
         const editMaterial = (material) => {
-            // TODO: Реализовать редактирование материала
-            Swal.fire({
-                title: 'В разработке',
-                text: 'Редактирование материалов будет доступно в следующей версии',
-                icon: 'info',
-            })
+            selectedMaterial.value = material
+            showMaterialForm.value = true
         }
 
         const showMaterialModal = (category) => {
-            // TODO: Реализовать модальное окно создания материала
-            Swal.fire({
-                title: 'В разработке',
-                text: 'Создание материалов будет доступно в следующей версии',
-                icon: 'info',
-            })
+            selectedCategory.value = category
+            selectedMaterial.value = null
+            showMaterialForm.value = true
         }
 
         onMounted(() => {
             fetchCategories()
         })
 
-        return {
+            return {
             loading,
             categories,
             showCategoryModal,
+            showMaterialForm,
+            selectedCategory,
+            selectedMaterial,
             fetchCategories,
+            createCategory,
             deleteCategory,
             deleteMaterial,
             editCategory,

@@ -148,11 +148,13 @@ class BotManagementController extends Controller
 
         // Обновляем settings JSON
         $settings = $bot->settings ?? [];
-        if (isset($validated['messages'])) {
-            $settings['messages'] = array_merge($settings['messages'] ?? [], $validated['messages']);
-        }
-        if (isset($validated['other_settings'])) {
-            $settings['other_settings'] = array_merge($settings['other_settings'] ?? [], $validated['other_settings']);
+        if (isset($validated['settings'])) {
+            if (isset($validated['settings']['messages'])) {
+                $settings['messages'] = array_merge_recursive($settings['messages'] ?? [], $validated['settings']['messages']);
+            }
+            if (isset($validated['settings']['other_settings'])) {
+                $settings['other_settings'] = array_merge($settings['other_settings'] ?? [], $validated['settings']['other_settings']);
+            }
         }
         $bot->settings = $settings;
         $bot->save();
