@@ -279,6 +279,12 @@ const routes = [
                 component: () => import('./pages/admin/BotManagement.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Управление ботом' },
             },
+            {
+                path: 'trendsso-parser',
+                name: 'admin.trendsso-parser',
+                component: () => import('./pages/admin/TrendSsoParser.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Парсер Trend SSO' },
+            },
         ],
     },
 ];

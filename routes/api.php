@@ -136,8 +136,8 @@ Route::post('/telegram/webhook/{id}', [BotController::class, 'handleWebhook'])
     ->where('id', '[0-9]+')
     ->name('telegram.webhook');
 
-// Trend SSO Parser API
-Route::prefix('trendsso')->group(function () {
+// Trend SSO Parser API (protected routes)
+Route::middleware('auth:sanctum')->prefix('trendsso')->group(function () {
     Route::post('/authenticate', [TrendSsoController::class, 'authenticate']);
     Route::post('/objects-list', [TrendSsoController::class, 'getObjectsList']);
 });
