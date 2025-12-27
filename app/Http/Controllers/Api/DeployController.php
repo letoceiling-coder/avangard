@@ -444,10 +444,30 @@ class DeployController extends Controller
                 $sshConfig = "Host github.com\n";
                 $sshConfig .= "  StrictHostKeyChecking no\n";
                 $sshConfig .= "  UserKnownHostsFile " . $knownHostsFile . "\n";
-                $sshConfig .= "  IdentityFile ~/.ssh/id_ed25519\n";
+                
+                // Пробуем найти SSH ключ в домашней директории пользователя
+                $homeDir = dirname(dirname($this->basePath)); // /home/d/dsc23ytp
+                $possibleKeys = [
+                    $homeDir . '/.ssh/id_ed25519',
+                    $homeDir . '/.ssh/id_rsa',
+                ];
+                
+                $identityFile = null;
+                foreach ($possibleKeys as $keyPath) {
+                    if (file_exists($keyPath)) {
+                        $identityFile = $keyPath;
+                        break;
+                    }
+                }
+                
+                if ($identityFile) {
+                    $sshConfig .= "  IdentityFile " . $identityFile . "\n";
+                }
+                // Если ключа нет, не указываем IdentityFile - SSH будет использовать стандартные ключи
+                
                 file_put_contents($sshConfigFile, $sshConfig);
                 chmod($sshConfigFile, 0600);
-                Log::info('SSH config создан для git');
+                Log::info('SSH config создан для git', ['identity_file' => $identityFile ?? 'default']);
             }
         } catch (\Exception $e) {
             Log::warning('Не удалось настроить SSH для git', [
