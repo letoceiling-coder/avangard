@@ -466,7 +466,19 @@ class DeployController extends Controller
      */
     protected function getComposerPath(): string
     {
-        // 1. Проверить локальный composer в директории проекта (приоритет - веб-сервер имеет доступ)
+        // 1. Проверить локальный composer.phar в директории проекта (приоритет - веб-сервер имеет доступ)
+        $localComposerPhar = $this->basePath . '/bin/composer.phar';
+        try {
+            $testProcess = Process::run("test -f " . escapeshellarg($localComposerPhar) . " && echo 'exists' 2>&1");
+            if ($testProcess->successful() && trim($testProcess->output()) === 'exists') {
+                Log::info("Composer найден локально в проекте: {$localComposerPhar}");
+                return $localComposerPhar;
+            }
+        } catch (\Exception $e) {
+            // Игнорируем ошибку
+        }
+        
+        // 1.1. Проверить также обычный composer (без .phar)
         $localComposer = $this->basePath . '/bin/composer';
         try {
             $testProcess = Process::run("test -f " . escapeshellarg($localComposer) . " && echo 'exists' 2>&1");
@@ -485,21 +497,52 @@ class DeployController extends Controller
                 mkdir($binDir, 0755, true);
             }
             
-            // Скачиваем composer.phar
+            // Скачиваем composer.phar напрямую
             $composerPhar = $binDir . '/composer.phar';
             Log::info("Попытка скачать composer в: {$composerPhar}");
             
-            $downloadProcess = Process::path($this->basePath)
-                ->run("curl -sS https://getcomposer.org/installer | {$this->phpPath} 2>&1");
+            // Проверяем, не существует ли уже composer.phar
+            $checkExisting = Process::run("test -f " . escapeshellarg($composerPhar) . " && echo 'exists' 2>&1");
+            if ($checkExisting->successful() && trim($checkExisting->output()) === 'exists') {
+                Log::info("Composer уже существует: {$composerPhar}");
+                return $composerPhar;
+            }
+            
+            // Пробуем скачать через curl
+            $downloadProcess = Process::path($binDir)
+                ->run("curl -sS https://getcomposer.org/download/latest-stable/composer.phar -o " . escapeshellarg($composerPhar) . " 2>&1");
             
             if ($downloadProcess->successful()) {
-                // Проверяем, был ли создан composer.phar в текущей директории
-                $checkPhar = Process::run("test -f " . escapeshellarg($this->basePath . '/composer.phar') . " && echo 'exists' 2>&1");
+                // Проверяем, был ли создан composer.phar
+                $checkPhar = Process::run("test -f " . escapeshellarg($composerPhar) . " && echo 'exists' 2>&1");
                 if ($checkPhar->successful() && trim($checkPhar->output()) === 'exists') {
-                    // Перемещаем в bin/
-                    Process::path($this->basePath)
-                        ->run("mv composer.phar " . escapeshellarg($composerPhar) . " 2>&1");
+                    // Делаем файл исполняемым
+                    Process::path($binDir)->run("chmod +x " . escapeshellarg($composerPhar) . " 2>&1");
                     Log::info("Composer успешно скачан: {$composerPhar}");
+                    return $composerPhar;
+                }
+            }
+            
+            // Если curl не сработал, пробуем wget
+            $downloadProcessWget = Process::path($binDir)
+                ->run("wget -q https://getcomposer.org/download/latest-stable/composer.phar -O " . escapeshellarg($composerPhar) . " 2>&1");
+            
+            if ($downloadProcessWget->successful()) {
+                $checkPhar = Process::run("test -f " . escapeshellarg($composerPhar) . " && echo 'exists' 2>&1");
+                if ($checkPhar->successful() && trim($checkPhar->output()) === 'exists') {
+                    Process::path($binDir)->run("chmod +x " . escapeshellarg($composerPhar) . " 2>&1");
+                    Log::info("Composer успешно скачан через wget: {$composerPhar}");
+                    return $composerPhar;
+                }
+            }
+            
+            // Если и wget не сработал, пробуем через PHP file_get_contents
+            $composerUrl = 'https://getcomposer.org/download/latest-stable/composer.phar';
+            $composerContent = @file_get_contents($composerUrl);
+            if ($composerContent !== false && strlen($composerContent) > 1000) {
+                if (file_put_contents($composerPhar, $composerContent) !== false) {
+                    chmod($composerPhar, 0755);
+                    Log::info("Composer успешно скачан через PHP: {$composerPhar}");
                     return $composerPhar;
                 }
             }
