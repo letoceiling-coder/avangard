@@ -1,11 +1,45 @@
+# Установить кодировку UTF-8 для всех текстовых файлов
 * text=auto eol=lf
 
-*.blade.php diff=html
-*.css diff=css
-*.html diff=html
-*.md diff=markdown
-*.php diff=php
+# Markdown файлы
+*.md text eol=lf charset=utf-8
 
-/.github export-ignore
-CHANGELOG.md export-ignore
-.styleci.yml export-ignore
+# PHP файлы
+*.php text eol=lf charset=utf-8
+
+# JavaScript файлы
+*.js text eol=lf charset=utf-8
+*.jsx text eol=lf charset=utf-8
+*.ts text eol=lf charset=utf-8
+*.tsx text eol=lf charset=utf-8
+
+# Vue файлы
+*.vue text eol=lf charset=utf-8
+
+# JSON файлы
+*.json text eol=lf charset=utf-8
+
+# YAML файлы
+*.yml text eol=lf charset=utf-8
+*.yaml text eol=lf charset=utf-8
+
+# Конфигурационные файлы
+*.env text eol=lf charset=utf-8
+*.env.example text eol=lf charset=utf-8
+*.gitignore text eol=lf charset=utf-8
+*.gitattributes text eol=lf charset=utf-8
+
+# Документация
+*.txt text eol=lf charset=utf-8
+*.md text eol=lf charset=utf-8
+
+# Бинарные файлы
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary

@@ -157,49 +157,85 @@ project/
 └── public/                     # Публичная директория
 ```
 
-## 🚀 Быстрый старт
+## 🚀 Установка
 
 ### Требования
 
-- PHP 8.2+
-- Composer 2.0+
-- Node.js 18.0+
-- MySQL 8.0+ или PostgreSQL 13+
-- SSL-сертификат (обязательно для Telegram Mini App)
+- **PHP** 8.2 или выше
+- **Composer** 2.0 или выше
+- **Node.js** 18.0 или выше (рекомендуется 20.x)
+- **npm** или **yarn**
+- **MySQL** 8.0+ или **PostgreSQL** 13+
+- **Веб-сервер** (Apache 2.4+ или Nginx 1.18+)
+- **SSL-сертификат** (обязательно для Telegram Mini App)
 
-### Установка
+### Установка на локальной машине (разработка)
 
-1. **Клонируйте репозиторий:**
+#### Шаг 1: Клонирование репозитория
+
 ```bash
-git clone https://github.com/letoceiling-coder/aip.git
-cd aip
+# Клонировать последнюю версию из main
+git clone https://github.com/letoceiling-coder/avangard.git
+cd avangard
+
+# ИЛИ клонировать конкретную стабильную версию
+git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/avangard.git
+cd avangard
 ```
 
 **💡 Установка конкретной версии:**
-Если вам нужна конкретная стабильная версия вместо последней версии из ветки main, используйте git теги. См. подробную документацию в [VERSIONING.md](VERSIONING.md).
+Если вам нужна конкретная стабильная версия, используйте git теги. См. подробную документацию в [VERSIONING.md](VERSIONING.md).
 
 ```bash
-# Клонировать сразу версию 1.1.0 (текущая стабильная)
-git clone --branch v1.1.0 --depth 1 https://github.com/letoceiling-coder/aip.git
-
-# Или в существующем репозитории
+# В существующем репозитории переключиться на версию
 git fetch --tags
-git checkout v1.1.0
+git checkout v1.0.0
 ```
 
-2. **Установите зависимости:**
+#### Шаг 2: Установка зависимостей PHP
+
 ```bash
+# Установить зависимости Composer
 composer install
-npm install
+
+# Для production используйте:
+# composer install --no-dev --optimize-autoloader
 ```
 
-3. **Настройте окружение:**
+#### Шаг 3: Установка зависимостей Node.js
+
 ```bash
+# Установить зависимости npm
+npm install
+
+# ИЛИ используйте yarn
+yarn install
+```
+
+#### Шаг 4: Настройка окружения
+
+```bash
+# Скопировать файл окружения
 cp .env.example .env
+
+# Сгенерировать ключ приложения
 php artisan key:generate
 ```
 
-4. **Настройте базу данных в `.env`:**
+#### Шаг 5: Настройка базы данных
+
+1. **Создайте базу данных** в MySQL или PostgreSQL:
+
+```sql
+-- MySQL
+CREATE DATABASE your_database_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- PostgreSQL
+CREATE DATABASE your_database_name;
+```
+
+2. **Настройте подключение в `.env`:**
+
 ```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -209,35 +245,353 @@ DB_USERNAME=your_username
 DB_PASSWORD=your_password
 ```
 
-5. **Выполните миграции и seeders:**
-```bash
-php artisan migrate
-php artisan db:seed
+Для PostgreSQL:
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
 ```
 
-6. **Настройте Telegram бота в `.env`:**
+#### Шаг 6: Выполнение миграций
+
+```bash
+# Выполнить миграции базы данных
+php artisan migrate
+
+# Если нужно выполнить миграции без подтверждения (для production)
+php artisan migrate --force
+```
+
+#### Шаг 7: Создание первого пользователя и роли
+
+После установки необходимо создать роль `admin` и назначить её первому пользователю.
+
+**Вариант 1: Через Laravel Tinker (рекомендуется)**
+
+```bash
+php artisan tinker
+```
+
+Затем выполните в tinker:
+
+```php
+// Создать роль admin
+$role = \App\Models\Role::firstOrCreate(
+    ['slug' => 'admin'],
+    [
+        'name' => 'Администратор',
+        'description' => 'Полный доступ к системе'
+    ]
+);
+
+// Создать первого пользователя (замените данные на свои)
+$user = \App\Models\User::create([
+    'name' => 'Администратор',
+    'email' => 'admin@example.com',
+    'password' => \Illuminate\Support\Facades\Hash::make('your_secure_password'),
+]);
+
+// Назначить роль пользователю
+$user->roles()->attach($role->id);
+
+// Проверить
+echo "Пользователь создан: " . $user->email . "\n";
+echo "Роли: " . $user->roles->pluck('slug')->implode(', ') . "\n";
+exit
+```
+
+**Вариант 2: Через SQL напрямую**
+
+```sql
+-- Создать роль admin
+INSERT INTO roles (slug, name, description, created_at, updated_at) 
+VALUES ('admin', 'Администратор', 'Полный доступ к системе', NOW(), NOW())
+ON DUPLICATE KEY UPDATE name='Администратор';
+
+-- Создать пользователя (пароль: your_secure_password)
+INSERT INTO users (name, email, password, created_at, updated_at)
+VALUES ('Администратор', 'admin@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW(), NOW());
+
+-- Назначить роль пользователю (замените USER_ID и ROLE_ID на реальные значения)
+INSERT INTO role_user (role_id, user_id) 
+SELECT r.id, u.id 
+FROM roles r, users u 
+WHERE r.slug = 'admin' AND u.email = 'admin@example.com';
+```
+
+**⚠️ ВАЖНО:** После создания пользователя через SQL обязательно измените пароль через админ-панель или создайте нового пользователя с правильным хешем пароля.
+
+#### Шаг 8: Настройка Telegram (опционально)
+
+Если планируете использовать управление ботами через админ-панель:
+
 ```env
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 ```
 
-7. **Настройте систему подписки (опционально):**
+#### Шаг 9: Настройка системы подписки (опционально)
+
 ```env
 SUBSCRIPTION_API_URL=https://crm.siteaccess.ru/api/v1/subscription/check
 SUBSCRIPTION_API_TOKEN=your_subscription_api_token
 ```
 
-8. **Настройте деплой (опционально):**
+#### Шаг 10: Сборка фронтенда
+
+```bash
+# Собрать админ-панель
+npm run build:admin
+
+# ИЛИ для разработки с hot-reload
+npm run dev:admin
+```
+
+#### Шаг 11: Настройка веб-сервера
+
+**Apache (.htaccess уже настроен):**
+
+Убедитесь, что в `public/.htaccess` есть правила для Laravel:
+
+```apache
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+```
+
+**Nginx:**
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    root /path/to/avangard/public;
+
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+
+    index index.php;
+
+    charset utf-8;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    error_page 404 /index.php;
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+```
+
+#### Шаг 12: Настройка прав доступа
+
+```bash
+# Установить права на запись для storage и cache
+chmod -R 775 storage bootstrap/cache
+
+# Создать симлинк для storage (если нужно)
+php artisan storage:link
+```
+
+### Установка на production сервере (Beget и другие)
+
+#### Подготовка сервера
+
+1. **Подключитесь к серверу по SSH**
+
+2. **Перейдите в директорию проекта:**
+
+```bash
+cd ~/your-domain.com/public_html
+```
+
+3. **Клонируйте проект:**
+
+```bash
+# Если директория пустая
+git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/avangard.git .
+
+# ИЛИ если директория не пустая
+git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/avangard.git temp_clone
+mv temp_clone/* temp_clone/.[^.]* . 2>/dev/null || true
+rmdir temp_clone
+```
+
+4. **Установите зависимости:**
+
+```bash
+# PHP зависимости (production режим)
+composer install --no-dev --optimize-autoloader
+
+# Node.js зависимости
+cd frontend
+npm install
+cd ..
+```
+
+5. **Настройте `.env`:**
+
+```bash
+cp .env.example .env
+# Отредактируйте .env файл с настройками вашего сервера
+nano .env
+```
+
+Обязательные настройки в `.env`:
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_DATABASE=your_database
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
+6. **Сгенерируйте ключ приложения:**
+
+```bash
+php artisan key:generate
+```
+
+7. **Выполните миграции:**
+
+```bash
+php artisan migrate --force
+```
+
+8. **Создайте первого пользователя и роль** (см. Шаг 7 выше)
+
+9. **Соберите фронтенд:**
+
+```bash
+cd frontend
+npm run build
+cd ..
+```
+
+10. **Очистите кеши:**
+
+```bash
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+php artisan optimize
+```
+
+11. **Настройте права доступа:**
+
+```bash
+# На shared hosting может не работать chown, это нормально
+chmod -R 755 storage bootstrap/cache
+
+# Создать симлинк для storage
+php artisan storage:link
+```
+
+### Решение типичных проблем
+
+#### Проблема: "vite: Permission denied" при сборке
+
+```bash
+cd frontend
+chmod +x node_modules/.bin/vite
+npm run build
+# ИЛИ используйте npx
+npx vite build
+```
+
+#### Проблема: Бесконечный редирект после авторизации
+
+Убедитесь, что у пользователя назначена роль `admin`. См. Шаг 7 выше.
+
+#### Проблема: "Class 'App\Models\Role' not found"
+
+Убедитесь, что миграции выполнены:
+```bash
+php artisan migrate --force
+```
+
+#### Проблема: "No application encryption key has been specified"
+
+```bash
+php artisan key:generate
+```
+
+#### Проблема: Ошибки при выполнении миграций
+
+```bash
+# Проверьте подключение к БД в .env
+# Выполните миграции с выводом ошибок
+php artisan migrate --force -vvv
+```
+
+#### Проблема: Фронтенд не собирается
+
+```bash
+cd frontend
+# Очистить кеш npm
+npm cache clean --force
+# Удалить node_modules и переустановить
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+### Проверка установки
+
+После установки проверьте:
+
+1. **Доступность сайта:** Откройте `https://your-domain.com` в браузере
+2. **Админ-панель:** Откройте `https://your-domain.com/admin` и войдите с созданным пользователем
+3. **API:** Проверьте доступность API через `https://your-domain.com/api/auth/user` (требует авторизации)
+
+### Дополнительная настройка
+
+#### Настройка деплоя (опционально)
+
 ```env
 DEPLOY_TOKEN=your_deploy_token
 DEPLOY_SERVER_URL=https://your-domain.com
+GITHUB_WEBHOOK_SECRET=your_webhook_secret
 ```
 
-9. **Соберите фронтенд:**
-```bash
-npm run build:admin
-```
-
-10. **Настройте веб-сервер** (Apache/Nginx) и SSL-сертификат
+См. раздел "Автоматический деплой" ниже для подробной настройки.
 
 ## 📚 API Документация
 
