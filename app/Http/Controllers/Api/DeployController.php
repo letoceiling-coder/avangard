@@ -349,28 +349,66 @@ class DeployController extends Controller
                 Log::info("ℹ️ Новых коммитов не найдено (коммитов впереди: {$commitsAhead})");
             }
 
-            // 3. Сбрасываем локальную ветку на origin/{branch} (принудительное обновление)
+            // 3. Убеждаемся, что локальная ветка отслеживает удаленную
+            Log::info("🔧 Проверяем и настраиваем отслеживание ветки {$branch}...");
+            $checkoutProcess = Process::path($this->basePath)
+                ->env($gitEnv)
+                ->run($gitBaseCmd . ' checkout ' . escapeshellarg($branch) . ' 2>&1');
+            
+            if (!$checkoutProcess->successful()) {
+                // Если локальной ветки нет, создаем ее отслеживающей удаленную
+                Log::info("🌿 Создаем локальную ветку {$branch} отслеживающую origin/{$branch}...");
+                $checkoutProcess = Process::path($this->basePath)
+                    ->env($gitEnv)
+                    ->run($gitBaseCmd . ' checkout -b ' . escapeshellarg($branch) . ' origin/' . escapeshellarg($branch) . ' 2>&1');
+            }
+
+            // 4. Сбрасываем локальную ветку на origin/{branch} (принудительное обновление)
             Log::info("🔄 Выполняем git reset --hard origin/{$branch}...");
+            $resetOutput = '';
+            $resetError = '';
             $process = Process::path($this->basePath)
                 ->env($gitEnv)
                 ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
 
             if (!$process->successful()) {
-                $resetError = $process->errorOutput() ?: $process->output();
-                Log::warning('Git reset --hard не удался, пробуем git pull', [
+                $resetOutput = $process->output();
+                $resetError = $process->errorOutput();
+                Log::warning('Git reset --hard не удался', [
+                    'output' => $resetOutput,
                     'error' => $resetError,
                 ]);
 
-                // Если reset не удался, пробуем обычный pull
-                Log::info("🔄 Выполняем git pull origin {$branch}...");
-                $process = Process::path($this->basePath)
+                // Если reset не удался, пробуем merge вместо pull
+                Log::info("🔄 Пробуем git merge origin/{$branch}...");
+                $mergeProcess = Process::path($this->basePath)
                     ->env($gitEnv)
-                    ->run($gitBaseCmd . ' pull origin ' . escapeshellarg($branch) . ' --no-rebase 2>&1');
+                    ->run($gitBaseCmd . ' merge origin/' . escapeshellarg($branch) . ' --ff-only 2>&1');
                     
-                if (!$process->successful()) {
-                    Log::warning('Git pull также не удался', [
-                        'error' => $process->errorOutput() ?: $process->output(),
-                    ]);
+                if ($mergeProcess->successful()) {
+                    $process = $mergeProcess;
+                    Log::info('✅ Git merge выполнен успешно');
+                } else {
+                    // Если merge не удался, пробуем обычный pull
+                    Log::info("🔄 Выполняем git pull origin {$branch}...");
+                    $pullProcess = Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' pull origin ' . escapeshellarg($branch) . ' --no-rebase 2>&1');
+                    
+                    if ($pullProcess->successful()) {
+                        $process = $pullProcess;
+                        Log::info('✅ Git pull выполнен успешно');
+                    } else {
+                        Log::warning('Git pull также не удался', [
+                            'error' => $pullProcess->errorOutput() ?: $pullProcess->output(),
+                        ]);
+                    }
+                }
+            } else {
+                Log::info('✅ Git reset --hard выполнен успешно');
+                $resetOutput = $process->output();
+                if (!empty(trim($resetOutput))) {
+                    Log::info('📝 Git reset вывод: ' . $resetOutput);
                 }
             }
 
