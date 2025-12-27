@@ -29,6 +29,7 @@ Thumbs.db
 *.zip
 *.7z
 *.tar.gz
+database/database.sqlite
 
 # Max и VK пакеты (вынесены в отдельные composer пакеты)
 /app/Max/
