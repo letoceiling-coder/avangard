@@ -307,10 +307,10 @@ class DeployController extends Controller
             Log::info("🌿 Обновляем ветку: {$branch}");
 
             // 1. Получаем последние изменения из репозитория
-            Log::info("📥 Выполняем git fetch origin {$branch}...");
+            Log::info("📥 Выполняем git fetch origin...");
             $fetchProcess = Process::path($this->basePath)
                 ->env($gitEnv)
-                ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1');
+                ->run($gitBaseCmd . ' fetch origin 2>&1');
 
             if (!$fetchProcess->successful()) {
                 Log::warning('⚠️ Не удалось выполнить git fetch', [
@@ -319,23 +319,59 @@ class DeployController extends Controller
                 ]);
             } else {
                 Log::info('✅ Git fetch выполнен успешно');
+                $fetchOutput = trim($fetchProcess->output());
+                if (!empty($fetchOutput)) {
+                    Log::info('📥 Git fetch вывод: ' . $fetchOutput);
+                }
             }
 
-            // 2. Сбрасываем локальную ветку на origin/main (принудительное обновление)
+            // 1.5. Проверяем текущий коммит origin/{branch} после fetch
+            $remoteCommitProcess = Process::path($this->basePath)
+                ->env($gitEnv)
+                ->run($gitBaseCmd . ' rev-parse origin/' . escapeshellarg($branch) . ' 2>&1');
+            $remoteCommitHash = trim($remoteCommitProcess->output());
+            if ($remoteCommitHash && $remoteCommitProcess->successful()) {
+                Log::info("📦 Коммит на origin/{$branch} после fetch: " . substr($remoteCommitHash, 0, 7));
+            }
+
+            // 2. Проверяем, есть ли различия между локальной и удаленной веткой
+            Log::info("🔍 Проверяем различия между HEAD и origin/{$branch}...");
+            $diffProcess = Process::path($this->basePath)
+                ->env($gitEnv)
+                ->run($gitBaseCmd . ' rev-list --count HEAD..origin/' . escapeshellarg($branch) . ' 2>&1');
+            
+            $commitsAhead = trim($diffProcess->output());
+            $hasNewCommits = is_numeric($commitsAhead) && (int)$commitsAhead > 0;
+            
+            if ($hasNewCommits) {
+                Log::info("📦 Найдено новых коммитов: {$commitsAhead}");
+            } else {
+                Log::info("ℹ️ Новых коммитов не найдено (коммитов впереди: {$commitsAhead})");
+            }
+
+            // 3. Сбрасываем локальную ветку на origin/{branch} (принудительное обновление)
             Log::info("🔄 Выполняем git reset --hard origin/{$branch}...");
             $process = Process::path($this->basePath)
                 ->env($gitEnv)
                 ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
 
             if (!$process->successful()) {
+                $resetError = $process->errorOutput() ?: $process->output();
                 Log::warning('Git reset --hard не удался, пробуем git pull', [
-                    'error' => $process->errorOutput(),
+                    'error' => $resetError,
                 ]);
 
                 // Если reset не удался, пробуем обычный pull
+                Log::info("🔄 Выполняем git pull origin {$branch}...");
                 $process = Process::path($this->basePath)
                     ->env($gitEnv)
-                    ->run($gitBaseCmd . ' pull origin ' . escapeshellarg($branch) . ' --no-rebase --force 2>&1');
+                    ->run($gitBaseCmd . ' pull origin ' . escapeshellarg($branch) . ' --no-rebase 2>&1');
+                    
+                if (!$process->successful()) {
+                    Log::warning('Git pull также не удался', [
+                        'error' => $process->errorOutput() ?: $process->output(),
+                    ]);
+                }
             }
 
             // 3. Получаем новый commit после обновления
