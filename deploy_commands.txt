@@ -1,0 +1,48 @@
+# Команды для развертывания на сервере Beget
+
+# 1. Перейти в директорию проекта
+cd ../trendagent.siteaccess.ru/public_html
+
+# 2. Если проект уже клонирован, обновить до версии 1.0.0
+git fetch --tags
+git checkout v1.0.0
+git pull origin v1.0.0
+
+# ИЛИ если проект еще не клонирован:
+# git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/avangard.git .
+
+# 3. Установить зависимости PHP
+composer install --no-dev --optimize-autoloader
+
+# 4. Установить зависимости Node.js (если нужно)
+cd frontend
+npm install
+cd ..
+
+# 5. Скопировать .env файл (если еще не создан)
+# cp .env.example .env
+
+# 6. Сгенерировать ключ приложения (если нужно)
+# php artisan key:generate
+
+# 7. Выполнить миграции
+php artisan migrate --force
+
+# 8. Собрать фронтенд
+cd frontend
+npm run build
+cd ..
+
+# 9. Очистить кеш Laravel
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+
+# 10. Настроить права доступа
+chmod -R 755 storage bootstrap/cache
+chown -R $(whoami):$(whoami) storage bootstrap/cache
+
+# 11. Создать симлинк для storage (если нужно)
+# php artisan storage:link
+

@@ -440,14 +440,18 @@ router.beforeEach(async (to, from, next) => {
         
         if (!hasRole) {
             // Пользователь не имеет нужной роли
-            console.log('❌ Router Guard - No required role, redirecting to /', {
+            console.log('❌ Router Guard - No required role, redirecting to /login', {
                 route: to.path,
                 requiredRoles,
                 userRoles,
                 userHasRoles: !!store.state.user?.roles,
                 userRolesCount: store.state.user?.roles?.length || 0,
             });
-            next('/');
+            // Перенаправляем на /login вместо /, чтобы избежать бесконечного редиректа
+            // Если пользователь авторизован, но не имеет ролей, он будет перенаправлен на /login
+            // где может увидеть сообщение об ошибке или выйти из системы
+            store.dispatch('logout');
+            next('/login');
             return;
         } else {
             console.log('✅ Router Guard - Role check passed', {
