@@ -163,6 +163,60 @@ export default {
             }
         }
 
+        const createCategory = async () => {
+            const { value: formValues } = await Swal.fire({
+                title: 'Создать категорию',
+                html: `
+                    <input id="swal-name" class="swal2-input" placeholder="Название" required>
+                    <textarea id="swal-description" class="swal2-textarea" placeholder="Описание"></textarea>
+                    <input id="swal-order" class="swal2-input" type="number" placeholder="Порядок" value="0">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Создать',
+                cancelButtonText: 'Отмена',
+                preConfirm: () => {
+                    const name = document.getElementById('swal-name').value
+                    if (!name) {
+                        Swal.showValidationMessage('Название обязательно')
+                        return false
+                    }
+                    return {
+                        name: name,
+                        description: document.getElementById('swal-description').value,
+                        order_index: parseInt(document.getElementById('swal-order').value) || 0,
+                    }
+                },
+            })
+
+            if (formValues) {
+                try {
+                    const response = await apiPost(`/bot-management/${props.botId}/materials/categories`, formValues)
+                    if (!response.ok) {
+                        throw new Error('Ошибка создания категории')
+                    }
+
+                    await Swal.fire({
+                        title: 'Создано',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end',
+                    })
+
+                    fetchCategories()
+                    showCategoryModal.value = false
+                } catch (err) {
+                    Swal.fire({
+                        title: 'Ошибка',
+                        text: err.message || 'Ошибка создания категории',
+                        icon: 'error',
+                    })
+                }
+            }
+        }
+
         const fetchMaterials = async (category) => {
             try {
                 const response = await apiGet(`/bot-management/${props.botId}/materials`, {
@@ -314,7 +368,7 @@ export default {
             fetchCategories()
         })
 
-            return {
+        return {
             loading,
             categories,
             showCategoryModal,
