@@ -34,3 +34,10 @@ Schedule::command('wow:send-reminders')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Планировщик парсинга данных TrendAgent
+// Запускаем каждые 5 минут для проверки расписаний и запуска парсинга
+Schedule::command('trend:parse-scheduler')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

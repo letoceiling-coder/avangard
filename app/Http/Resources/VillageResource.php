@@ -34,9 +34,9 @@ class VillageResource extends JsonResource
             
             // Сроки и старт продаж
             'deadline' => $this->deadline,
-            'deadline_date' => $this->deadline_date?->toIso8601String(),
+            'deadline_date' => $this->deadline_date instanceof \Carbon\Carbon ? $this->deadline_date->toIso8601String() : $this->deadline_date,
             'sales_start' => $this->sales_start,
-            'sales_start_date' => $this->sales_start_date?->toIso8601String(),
+            'sales_start_date' => $this->sales_start_date instanceof \Carbon\Carbon ? $this->sales_start_date->toIso8601String() : $this->sales_start_date,
             
             // Комиссия
             'reward_label' => $this->reward_label,
@@ -47,15 +47,15 @@ class VillageResource extends JsonResource
             
             // Источник данных
             'data_source' => $this->data_source,
-            'parsed_at' => $this->parsed_at?->toIso8601String(),
-            'last_synced_at' => $this->last_synced_at?->toIso8601String(),
+            'parsed_at' => $this->parsed_at instanceof \Carbon\Carbon ? $this->parsed_at->toIso8601String() : $this->parsed_at,
+            'last_synced_at' => $this->last_synced_at instanceof \Carbon\Carbon ? $this->last_synced_at->toIso8601String() : $this->last_synced_at,
             
             // Метаданные
             'metadata' => $this->metadata,
             'property_types' => $this->property_types,
             
-            'created_at' => $this->created_at->toIso8601String(),
-            'updated_at' => $this->updated_at->toIso8601String(),
+            'created_at' => $this->created_at instanceof \Carbon\Carbon ? $this->created_at->toIso8601String() : $this->created_at,
+            'updated_at' => $this->updated_at instanceof \Carbon\Carbon ? $this->updated_at->toIso8601String() : $this->updated_at,
         ];
     }
 }

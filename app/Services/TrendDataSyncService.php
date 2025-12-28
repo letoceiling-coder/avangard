@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\TrendApiException;
 use App\Exceptions\TrendParserException;
 use App\Models\DataChange;
+use App\Models\Image;
 use App\Models\PriceHistory;
 use App\Models\ParserError;
 use App\Models\Trend\Block;
@@ -13,6 +14,11 @@ use App\Models\Trend\Builder;
 use App\Models\Trend\Subway;
 use App\Models\Trend\Region;
 use App\Models\Trend\Location;
+use App\Models\Trend\Village;
+use App\Models\Trend\Plot;
+use App\Models\Trend\CommercialBlock;
+use App\Models\Trend\CommercialPremise;
+use App\Services\ImageValidationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -101,6 +107,11 @@ class TrendDataSyncService
             // Синхронизация связей
             $this->syncBlockSubways($block, $apiData['subways'] ?? [], $options);
             $this->syncBlockPrices($block, $apiData['min_prices'] ?? [], $options);
+            
+            // Синхронизация изображений
+            if (isset($apiData['images']) && is_array($apiData['images'])) {
+                $this->syncImages($block, $apiData['images'], $options);
+            }
             
             // Пометить как спарсенное
             $block->markAsParsed();
@@ -570,6 +581,1011 @@ class TrendDataSyncService
         }
         
         return (string) $value;
+    }
+
+    /**
+     * Синхронизация изображений для объекта Trend
+     *
+     * @param \App\Models\Trend\BaseTrendModel $object Объект Trend
+     * @param array $imagesData Массив данных изображений из API
+     * @param array $options Опции синхронизации
+     * @return void
+     */
+    protected function syncImages($object, array $imagesData, array $options = []): void
+    {
+        $options = array_merge([
+            'check_images' => false,
+            'image_validation_timeout' => 5,
+        ], $options);
+
+        if (empty($imagesData)) {
+            return;
+        }
+
+        $imageValidationService = null;
+        if ($options['check_images']) {
+            $imageValidationService = new ImageValidationService();
+        }
+
+        $existingImages = $object->images()->get()->keyBy('external_id');
+        $apiImageIds = [];
+
+        foreach ($imagesData as $index => $imageData) {
+            $externalId = $imageData['_id'] ?? $imageData['id'] ?? null;
+            $apiImageIds[] = $externalId;
+
+            // Подготовка данных изображения
+            $imageAttributes = [
+                'external_id' => $externalId,
+                'file_name' => $imageData['file_name'] ?? $imageData['name'] ?? null,
+                'path' => $imageData['path'] ?? null,
+                'url_thumbnail' => $imageData['url_thumbnail'] ?? $imageData['thumbnail'] ?? null,
+                'url_full' => $imageData['url_full'] ?? $imageData['url'] ?? null,
+                'alt' => $imageData['alt'] ?? null,
+                'title' => $imageData['title'] ?? null,
+                'description' => $imageData['description'] ?? null,
+                'width' => $imageData['width'] ?? null,
+                'height' => $imageData['height'] ?? null,
+                'size' => $imageData['size'] ?? null,
+                'mime_type' => $imageData['mime_type'] ?? null,
+                'sort_order' => $imageData['sort_order'] ?? $index,
+                'is_main' => $imageData['is_main'] ?? ($index === 0),
+            ];
+
+            // Поиск существующего изображения
+            $image = $existingImages->get($externalId);
+
+            if ($image) {
+                // Обновляем существующее изображение
+                $image->update($imageAttributes);
+            } else {
+                // Создаем новое изображение
+                $imageAttributes['imageable_type'] = get_class($object);
+                $imageAttributes['imageable_id'] = $object->id;
+                $image = Image::create($imageAttributes);
+            }
+
+            // Проверка доступности изображения, если указано
+            if ($options['check_images'] && $imageValidationService) {
+                try {
+                    $imageValidationService->validateImage($image);
+                } catch (\Exception $e) {
+                    Log::warning('Image validation error', [
+                        'image_id' => $image->id,
+                        'url' => $image->full_url,
+                        'error' => $e->getMessage(),
+                        'object_type' => get_class($object),
+                        'object_id' => $object->id,
+                    ]);
+                }
+            }
+        }
+
+        // Удаляем изображения, которых нет в API данных
+        $imagesToDelete = $existingImages->filter(function ($image) use ($apiImageIds) {
+            return !in_array($image->external_id, $apiImageIds);
+        });
+
+        foreach ($imagesToDelete as $image) {
+            $image->delete(); // Soft delete
+        }
+    }
+
+    /**
+     * Синхронизация поселка (дома с участками)
+     *
+     * @param array $apiData Данные из API
+     * @param array $options Опции синхронизации
+     * @return Village
+     * @throws TrendParserException
+     */
+    public function syncVillage(array $apiData, array $options = []): Village
+    {
+        $options = array_merge([
+            'skip_errors' => false,
+            'log_errors' => true,
+            'update_existing' => true,
+            'create_missing_references' => true,
+            'track_changes' => true,
+            'log_price_changes' => true,
+            'check_images' => false,
+        ], $options);
+
+        try {
+            DB::beginTransaction();
+
+            // Найти или создать справочники
+            $city = $this->findOrCreateCity($apiData['city'] ?? null, $options);
+            $builder = $this->findOrCreateBuilder($apiData['builder'] ?? null, $options);
+
+            if (!$city) {
+                throw new TrendParserException('Город обязателен для поселка');
+            }
+
+            // Подготовка данных поселка
+            $villageData = $this->prepareVillageData($apiData, [
+                'city_id' => $city->id,
+                'builder_id' => $builder?->id,
+            ]);
+
+            // Поиск существующего поселка
+            $village = null;
+            if (!empty($villageData['external_id'])) {
+                $village = Village::where('external_id', $villageData['external_id'])->first();
+            }
+
+            if (!$village && !empty($villageData['guid'])) {
+                $village = Village::where('guid', $villageData['guid'])
+                    ->where('city_id', $villageData['city_id'])
+                    ->first();
+            }
+
+            // Создание или обновление
+            if ($village && $options['update_existing']) {
+                $oldValues = $village->getAttributes();
+                $village->update($villageData);
+
+                if ($options['track_changes']) {
+                    $changes = $this->detectChanges($oldValues, $villageData, [
+                        'critical_fields' => ['is_active'],
+                        'important_fields' => ['name', 'address', 'deadline_date', 'sales_start_date'],
+                    ]);
+
+                    if (!empty($changes)) {
+                        $this->logChanges($village, $changes, 'parser');
+                    }
+                }
+            } elseif (!$village) {
+                $village = Village::create($villageData);
+            }
+
+            // Синхронизация изображений
+            if (isset($apiData['images']) && is_array($apiData['images'])) {
+                $this->syncImages($village, $apiData['images'], $options);
+            }
+
+            // Пометить как спарсенное
+            $village->markAsParsed();
+            $village->markAsSynced();
+
+            // Логировать источник
+            $village->dataSources()->create([
+                'source_type' => 'parser',
+                'source_name' => 'TrendAgent API',
+                'processed_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $village->fresh(['city', 'builder']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if ($options['log_errors']) {
+                $this->logError('parsing', 'village', [
+                    'external_id' => $apiData['_id'] ?? null,
+                    'guid' => $apiData['guid'] ?? null,
+                    'error' => $e->getMessage(),
+                    'data' => $apiData,
+                ], $e);
+            }
+
+            if (!$options['skip_errors']) {
+                throw new TrendParserException(
+                    'Ошибка синхронизации поселка: ' . $e->getMessage(),
+                    0,
+                    $e,
+                    ['api_data' => $apiData]
+                );
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Подготовка данных поселка из API
+     */
+    protected function prepareVillageData(array $apiData, array $additionalData = []): array
+    {
+        return array_merge([
+            'guid' => $apiData['guid'] ?? null,
+            'name' => $apiData['name'] ?? null,
+            'address' => is_array($apiData['address'] ?? null)
+                ? implode(', ', $apiData['address'])
+                : ($apiData['address'] ?? null),
+            'external_id' => $apiData['_id'] ?? null,
+            'plots_count' => $apiData['plots_count'] ?? $apiData['plotsCount'] ?? 0,
+            'view_plots_count' => $apiData['view_plots_count'] ?? $apiData['viewPlotsCount'] ?? 0,
+            'distance' => $apiData['distance'] ?? null,
+            'deadline' => $apiData['deadline'] ?? null,
+            'deadline_date' => $this->parseDate($apiData['deadline_date'] ?? null),
+            'sales_start' => $apiData['sales_start'] ?? null,
+            'sales_start_date' => $this->parseDate($apiData['sales_start_date'] ?? null),
+            'reward_label' => $apiData['reward_label'] ?? null,
+            'is_new_village' => $apiData['is_new_village'] ?? $apiData['isNewVillage'] ?? false,
+            'is_active' => ($apiData['status'] ?? 1) === 1,
+            'data_source' => 'parser',
+            'metadata' => $apiData['metadata'] ?? null,
+            'property_types' => $apiData['property_types'] ?? $apiData['propertyTypes'] ?? null,
+        ], $additionalData);
+    }
+
+    /**
+     * Синхронизация участка
+     *
+     * @param array $apiData Данные из API
+     * @param array $options Опции синхронизации
+     * @return Plot
+     * @throws TrendParserException
+     */
+    public function syncPlot(array $apiData, array $options = []): Plot
+    {
+        $options = array_merge([
+            'skip_errors' => false,
+            'log_errors' => true,
+            'update_existing' => true,
+            'create_missing_references' => true,
+            'track_changes' => true,
+            'log_price_changes' => true,
+            'check_images' => false,
+        ], $options);
+
+        try {
+            DB::beginTransaction();
+
+            // Найти или создать справочники
+            $city = $this->findOrCreateCity($apiData['city'] ?? null, $options);
+            $builder = $this->findOrCreateBuilder($apiData['builder'] ?? null, $options);
+            $location = $this->findOrCreateLocation($apiData['location'] ?? null, $city, $options);
+            
+            // Поиск поселка, если указан
+            $village = null;
+            if (isset($apiData['village']) && !empty($apiData['village']['guid'])) {
+                $village = Village::where('guid', $apiData['village']['guid'])->first();
+            }
+
+            if (!$city) {
+                throw new TrendParserException('Город обязателен для участка');
+            }
+
+            // Подготовка данных участка
+            $plotData = $this->preparePlotData($apiData, [
+                'city_id' => $city->id,
+                'village_id' => $village?->id,
+                'builder_id' => $builder?->id,
+                'location_id' => $location?->id,
+            ]);
+
+            // Поиск существующего участка
+            $plot = null;
+            if (!empty($plotData['external_id'])) {
+                $plot = Plot::where('external_id', $plotData['external_id'])->first();
+            }
+
+            if (!$plot && !empty($plotData['guid'])) {
+                $plot = Plot::where('guid', $plotData['guid'])
+                    ->where('city_id', $plotData['city_id'])
+                    ->first();
+            }
+
+            // Создание или обновление
+            if ($plot && $options['update_existing']) {
+                $oldValues = $plot->getAttributes();
+                $plot->update($plotData);
+
+                if ($options['track_changes']) {
+                    $changes = $this->detectChanges($oldValues, $plotData, [
+                        'critical_fields' => ['min_price', 'max_price', 'is_active'],
+                        'important_fields' => ['name', 'address', 'area_min', 'area_max'],
+                    ]);
+
+                    if (!empty($changes)) {
+                        $this->logChanges($plot, $changes, 'parser');
+                    }
+
+                    if ($options['log_price_changes']) {
+                        $this->logPriceChanges($plot, $oldValues, $plotData, 'parser');
+                    }
+                }
+            } elseif (!$plot) {
+                $plot = Plot::create($plotData);
+            }
+
+            // Синхронизация изображений
+            if (isset($apiData['images']) && is_array($apiData['images'])) {
+                $this->syncImages($plot, $apiData['images'], $options);
+            }
+
+            // Пометить как спарсенное
+            $plot->markAsParsed();
+            $plot->markAsSynced();
+
+            // Логировать источник
+            $plot->dataSources()->create([
+                'source_type' => 'parser',
+                'source_name' => 'TrendAgent API',
+                'processed_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $plot->fresh(['city', 'village', 'builder', 'location']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if ($options['log_errors']) {
+                $this->logError('parsing', 'plot', [
+                    'external_id' => $apiData['_id'] ?? null,
+                    'guid' => $apiData['guid'] ?? null,
+                    'error' => $e->getMessage(),
+                    'data' => $apiData,
+                ], $e);
+            }
+
+            if (!$options['skip_errors']) {
+                throw new TrendParserException(
+                    'Ошибка синхронизации участка: ' . $e->getMessage(),
+                    0,
+                    $e,
+                    ['api_data' => $apiData]
+                );
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Подготовка данных участка из API
+     */
+    protected function preparePlotData(array $apiData, array $additionalData = []): array
+    {
+        return array_merge([
+            'guid' => $apiData['guid'] ?? null,
+            'name' => $apiData['name'] ?? null,
+            'address' => is_array($apiData['address'] ?? null)
+                ? implode(', ', $apiData['address'])
+                : ($apiData['address'] ?? null),
+            'external_id' => $apiData['_id'] ?? null,
+            'crm_id' => $apiData['crm_id'] ?? null,
+            'latitude' => $apiData['latitude'] ?? null,
+            'longitude' => $apiData['longitude'] ?? null,
+            'min_price' => $this->convertPriceToKopecks($apiData['min_price'] ?? null),
+            'max_price' => $this->convertPriceToKopecks($apiData['max_price'] ?? null),
+            'area_min' => $apiData['area_min'] ?? $apiData['areaMin'] ?? null,
+            'area_max' => $apiData['area_max'] ?? $apiData['areaMax'] ?? null,
+            'status' => $apiData['status'] ?? 1,
+            'is_active' => ($apiData['status'] ?? 1) === 1,
+            'data_source' => 'parser',
+            'metadata' => $apiData['metadata'] ?? null,
+        ], $additionalData);
+    }
+
+    /**
+     * Синхронизация коммерческого объекта
+     *
+     * @param array $apiData Данные из API
+     * @param array $options Опции синхронизации
+     * @return CommercialBlock
+     * @throws TrendParserException
+     */
+    public function syncCommercialBlock(array $apiData, array $options = []): CommercialBlock
+    {
+        $options = array_merge([
+            'skip_errors' => false,
+            'log_errors' => true,
+            'update_existing' => true,
+            'create_missing_references' => true,
+            'track_changes' => true,
+            'check_images' => false,
+        ], $options);
+
+        try {
+            DB::beginTransaction();
+
+            // Найти или создать справочники
+            $city = $this->findOrCreateCity($apiData['city'] ?? null, $options);
+            $builder = $this->findOrCreateBuilder($apiData['builder'] ?? null, $options);
+            $region = $this->findOrCreateRegion($apiData['district'] ?? $apiData['region'] ?? null, $city, $options);
+            $location = $this->findOrCreateLocation($apiData['location'] ?? null, $city, $options);
+
+            if (!$city) {
+                throw new TrendParserException('Город обязателен для коммерческого объекта');
+            }
+
+            // Подготовка данных коммерческого объекта
+            $blockData = $this->prepareCommercialBlockData($apiData, [
+                'city_id' => $city->id,
+                'builder_id' => $builder?->id,
+                'district_id' => $region?->id,
+                'location_id' => $location?->id,
+            ]);
+
+            // Поиск существующего объекта
+            $block = null;
+            if (!empty($blockData['external_id'])) {
+                $block = CommercialBlock::where('external_id', $blockData['external_id'])->first();
+            }
+
+            if (!$block && !empty($blockData['guid'])) {
+                $block = CommercialBlock::where('guid', $blockData['guid'])
+                    ->where('city_id', $blockData['city_id'])
+                    ->first();
+            }
+
+            // Создание или обновление
+            if ($block && $options['update_existing']) {
+                $oldValues = $block->getAttributes();
+                $block->update($blockData);
+
+                if ($options['track_changes']) {
+                    $changes = $this->detectChanges($oldValues, $blockData, [
+                        'critical_fields' => ['is_active'],
+                        'important_fields' => ['name', 'address', 'deadline_date'],
+                    ]);
+
+                    if (!empty($changes)) {
+                        $this->logChanges($block, $changes, 'parser');
+                    }
+                }
+            } elseif (!$block) {
+                $block = CommercialBlock::create($blockData);
+            }
+
+            // Синхронизация изображений
+            if (isset($apiData['images']) && is_array($apiData['images'])) {
+                $this->syncImages($block, $apiData['images'], $options);
+            }
+
+            // Пометить как спарсенное
+            $block->markAsParsed();
+            $block->markAsSynced();
+
+            // Логировать источник
+            $block->dataSources()->create([
+                'source_type' => 'parser',
+                'source_name' => 'TrendAgent API',
+                'processed_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $block->fresh(['city', 'builder', 'district', 'location']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if ($options['log_errors']) {
+                $this->logError('parsing', 'commercial_block', [
+                    'external_id' => $apiData['_id'] ?? null,
+                    'guid' => $apiData['guid'] ?? null,
+                    'error' => $e->getMessage(),
+                    'data' => $apiData,
+                ], $e);
+            }
+
+            if (!$options['skip_errors']) {
+                throw new TrendParserException(
+                    'Ошибка синхронизации коммерческого объекта: ' . $e->getMessage(),
+                    0,
+                    $e,
+                    ['api_data' => $apiData]
+                );
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Подготовка данных коммерческого объекта из API
+     */
+    protected function prepareCommercialBlockData(array $apiData, array $additionalData = []): array
+    {
+        return array_merge([
+            'guid' => $apiData['guid'] ?? null,
+            'name' => $apiData['name'] ?? null,
+            'address' => is_array($apiData['address'] ?? null)
+                ? implode(', ', $apiData['address'])
+                : ($apiData['address'] ?? null),
+            'external_id' => $apiData['_id'] ?? null,
+            'premises_count' => $apiData['premises_count'] ?? $apiData['premisesCount'] ?? 0,
+            'booked_premises_count' => $apiData['booked_premises_count'] ?? $apiData['bookedPremisesCount'] ?? 0,
+            'is_new_block' => $apiData['is_new_block'] ?? $apiData['isNewBlock'] ?? false,
+            'is_active' => ($apiData['status'] ?? 1) === 1,
+            'deadlines' => $apiData['deadlines'] ?? null,
+            'deadline_date' => $this->parseDate($apiData['deadline_date'] ?? null),
+            'deadline_over_check' => $apiData['deadline_over_check'] ?? false,
+            'sales_start_at' => $apiData['sales_start_at'] ?? null,
+            'reward_label' => $apiData['reward_label'] ?? null,
+            'data_source' => 'parser',
+            'metadata' => $apiData['metadata'] ?? null,
+            'property_types' => $apiData['property_types'] ?? $apiData['propertyTypes'] ?? null,
+            'min_prices' => $apiData['min_prices'] ?? $apiData['minPrices'] ?? null,
+        ], $additionalData);
+    }
+
+    /**
+     * Синхронизация коммерческого помещения
+     *
+     * @param array $apiData Данные из API
+     * @param array $options Опции синхронизации
+     * @return CommercialPremise
+     * @throws TrendParserException
+     */
+    public function syncCommercialPremise(array $apiData, array $options = []): CommercialPremise
+    {
+        $options = array_merge([
+            'skip_errors' => false,
+            'log_errors' => true,
+            'update_existing' => true,
+            'create_missing_references' => true,
+            'track_changes' => true,
+            'log_price_changes' => true,
+            'check_images' => false,
+        ], $options);
+
+        try {
+            DB::beginTransaction();
+
+            // Найти или создать справочники
+            $city = $this->findOrCreateCity($apiData['city'] ?? null, $options);
+            $builder = $this->findOrCreateBuilder($apiData['builder'] ?? null, $options);
+            $region = $this->findOrCreateRegion($apiData['district'] ?? $apiData['region'] ?? null, $city, $options);
+            $location = $this->findOrCreateLocation($apiData['location'] ?? null, $city, $options);
+            
+            // Поиск коммерческого объекта, если указан
+            $commercialBlock = null;
+            if (isset($apiData['block']) && !empty($apiData['block']['guid'])) {
+                $commercialBlock = CommercialBlock::where('guid', $apiData['block']['guid'])->first();
+            }
+
+            if (!$city) {
+                throw new TrendParserException('Город обязателен для коммерческого помещения');
+            }
+
+            // Подготовка данных помещения
+            $premiseData = $this->prepareCommercialPremiseData($apiData, [
+                'city_id' => $city->id,
+                'commercial_block_id' => $commercialBlock?->id,
+                'builder_id' => $builder?->id,
+                'district_id' => $region?->id,
+                'location_id' => $location?->id,
+            ]);
+
+            // Поиск существующего помещения
+            $premise = null;
+            if (!empty($premiseData['external_id'])) {
+                $premise = CommercialPremise::where('external_id', $premiseData['external_id'])->first();
+            }
+
+            if (!$premise && !empty($premiseData['guid'])) {
+                $premise = CommercialPremise::where('guid', $premiseData['guid'])
+                    ->where('city_id', $premiseData['city_id'])
+                    ->first();
+            }
+
+            // Создание или обновление
+            if ($premise && $options['update_existing']) {
+                $oldValues = $premise->getAttributes();
+                $premise->update($premiseData);
+
+                if ($options['track_changes']) {
+                    $changes = $this->detectChanges($oldValues, $premiseData, [
+                        'critical_fields' => ['price', 'is_active', 'is_booked'],
+                        'important_fields' => ['name', 'address', 'area'],
+                    ]);
+
+                    if (!empty($changes)) {
+                        $this->logChanges($premise, $changes, 'parser');
+                    }
+
+                    // Логируем изменения цены
+                    if ($options['log_price_changes'] && isset($oldValues['price']) && isset($premiseData['price'])) {
+                        if ($oldValues['price'] != $premiseData['price']) {
+                            PriceHistory::create([
+                                'priceable_type' => get_class($premise),
+                                'priceable_id' => $premise->id,
+                                'price_type' => 'single',
+                                'old_price' => $oldValues['price'],
+                                'new_price' => $premiseData['price'],
+                                'source' => 'parser',
+                                'changed_at' => now(),
+                                'user_id' => auth()->id(),
+                            ]);
+                        }
+                    }
+                }
+            } elseif (!$premise) {
+                $premise = CommercialPremise::create($premiseData);
+            }
+
+            // Синхронизация изображений
+            if (isset($apiData['images']) && is_array($apiData['images'])) {
+                $this->syncImages($premise, $apiData['images'], $options);
+            }
+
+            // Пометить как спарсенное
+            $premise->markAsParsed();
+            $premise->markAsSynced();
+
+            // Логировать источник
+            $premise->dataSources()->create([
+                'source_type' => 'parser',
+                'source_name' => 'TrendAgent API',
+                'processed_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $premise->fresh(['city', 'commercialBlock', 'builder', 'district', 'location']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if ($options['log_errors']) {
+                $this->logError('parsing', 'commercial_premise', [
+                    'external_id' => $apiData['_id'] ?? null,
+                    'guid' => $apiData['guid'] ?? null,
+                    'error' => $e->getMessage(),
+                    'data' => $apiData,
+                ], $e);
+            }
+
+            if (!$options['skip_errors']) {
+                throw new TrendParserException(
+                    'Ошибка синхронизации коммерческого помещения: ' . $e->getMessage(),
+                    0,
+                    $e,
+                    ['api_data' => $apiData]
+                );
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Подготовка данных коммерческого помещения из API
+     */
+    protected function prepareCommercialPremiseData(array $apiData, array $additionalData = []): array
+    {
+        return array_merge([
+            'guid' => $apiData['guid'] ?? null,
+            'name' => $apiData['name'] ?? null,
+            'address' => is_array($apiData['address'] ?? null)
+                ? implode(', ', $apiData['address'])
+                : ($apiData['address'] ?? null),
+            'external_id' => $apiData['_id'] ?? null,
+            'crm_id' => $apiData['crm_id'] ?? null,
+            'latitude' => $apiData['latitude'] ?? null,
+            'longitude' => $apiData['longitude'] ?? null,
+            'price' => $this->convertPriceToKopecks($apiData['price'] ?? null),
+            'price_unit' => $apiData['price_unit'] ?? $apiData['priceUnit'] ?? null,
+            'area' => $apiData['area'] ?? null,
+            'premise_type' => $apiData['premise_type'] ?? $apiData['premiseType'] ?? null,
+            'property_types' => $apiData['property_types'] ?? $apiData['propertyTypes'] ?? null,
+            'status' => $apiData['status'] ?? 1,
+            'is_active' => ($apiData['status'] ?? 1) === 1,
+            'is_booked' => $apiData['is_booked'] ?? $apiData['isBooked'] ?? false,
+            'data_source' => 'parser',
+            'metadata' => $apiData['metadata'] ?? null,
+        ], $additionalData);
+    }
+    
+    /**
+     * Проверка актуальности конкретного объекта
+     * 
+     * @param \App\Models\Trend\BaseTrendModel $object Объект для проверки
+     * @param string $authToken Токен авторизации
+     * @param array $options Опции проверки
+     * @return array Результат проверки ['actual' => bool, 'updated' => bool, 'changes' => array]
+     * @throws TrendParserException
+     */
+    public function checkDataActuality($object, string $authToken, array $options = []): array
+    {
+        $options = array_merge([
+            'update_if_changed' => true,
+            'track_changes' => true,
+            'log_price_changes' => true,
+        ], $options);
+        
+        try {
+            // Определяем тип объекта и endpoint
+            $typeMapping = $this->getObjectTypeMapping($object);
+            if (!$typeMapping) {
+                throw new TrendParserException('Неизвестный тип объекта для проверки актуальности');
+            }
+            
+            // Получаем данные из API
+            $apiData = $this->fetchObjectFromApi($object, $typeMapping, $authToken);
+            
+            if (!$apiData) {
+                return [
+                    'actual' => false,
+                    'updated' => false,
+                    'changes' => [],
+                    'error' => 'Объект не найден в API',
+                ];
+            }
+            
+            // Подготавливаем данные для сравнения через соответствующий метод prepare*Data
+            $newData = $this->prepareDataForComparison($object, $apiData, $typeMapping);
+            
+            // Сравниваем данные
+            $oldValues = $object->getAttributes();
+            
+            // Обнаруживаем изменения
+            $changes = $this->detectChanges($oldValues, $newData, [
+                'critical_fields' => ['min_price', 'max_price', 'price', 'status', 'is_active', 'deadline_date'],
+                'important_fields' => ['name', 'address', 'finishing', 'deadline'],
+            ]);
+            
+            $hasChanges = !empty($changes);
+            
+            // Обновляем, если есть изменения и включено обновление
+            if ($hasChanges && $options['update_if_changed']) {
+                // Используем соответствующий метод синхронизации
+                $syncMethod = $typeMapping['sync_method'];
+                $syncedObject = $this->$syncMethod($apiData, [
+                    'update_existing' => true,
+                    'track_changes' => $options['track_changes'],
+                    'log_price_changes' => $options['log_price_changes'],
+                ]);
+                
+                return [
+                    'actual' => false,
+                    'updated' => true,
+                    'changes' => $changes,
+                    'object' => $syncedObject,
+                ];
+            }
+            
+            return [
+                'actual' => !$hasChanges,
+                'updated' => false,
+                'changes' => $changes,
+            ];
+            
+        } catch (\Exception $e) {
+            Log::error('Error checking data actuality', [
+                'object_type' => get_class($object),
+                'object_id' => $object->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            throw new TrendParserException(
+                'Ошибка проверки актуальности: ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+    
+    /**
+     * Массовая проверка актуальности объектов
+     * 
+     * @param string $objectType Тип объекта (blocks, parkings, villages, etc.)
+     * @param int|null $cityId ID города (null для всех городов)
+     * @param string $authToken Токен авторизации
+     * @param array $options Опции проверки
+     * @return array Статистика проверки
+     */
+    public function checkBatchActuality(string $objectType, ?int $cityId, string $authToken, array $options = []): array
+    {
+        $options = array_merge([
+            'limit' => 100,
+            'days' => 7, // Проверять объекты, не обновлявшиеся более N дней
+            'update_if_changed' => true,
+        ], $options);
+        
+        $stats = [
+            'checked' => 0,
+            'updated' => 0,
+            'actual' => 0,
+            'errors' => 0,
+        ];
+        
+        try {
+            // Получаем модель для типа объекта
+            $model = $this->getModelForType($objectType);
+            if (!$model) {
+                throw new TrendParserException("Неизвестный тип объекта: {$objectType}");
+            }
+            
+            // Получаем список объектов для проверки
+            $query = $model::outdated($options['days']);
+            if ($cityId) {
+                $query->where('city_id', $cityId);
+            }
+            
+            $objects = $query->limit($options['limit'])->get();
+            
+            foreach ($objects as $object) {
+                try {
+                    $result = $this->checkDataActuality($object, $authToken, $options);
+                    $stats['checked']++;
+                    
+                    if ($result['updated']) {
+                        $stats['updated']++;
+                    } elseif ($result['actual']) {
+                        $stats['actual']++;
+                    }
+                } catch (\Exception $e) {
+                    $stats['errors']++;
+                    Log::warning('Error checking object actuality', [
+                        'object_type' => $objectType,
+                        'object_id' => $object->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            
+            return $stats;
+            
+        } catch (\Exception $e) {
+            Log::error('Error in batch actuality check', [
+                'object_type' => $objectType,
+                'city_id' => $cityId,
+                'error' => $e->getMessage(),
+            ]);
+            
+            throw new TrendParserException(
+                'Ошибка массовой проверки актуальности: ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+    
+    /**
+     * Получить маппинг типа объекта для API
+     */
+    protected function getObjectTypeMapping($object): ?array
+    {
+        $mappings = [
+            Block::class => [
+                'type' => 'blocks',
+                'endpoint' => 'https://api.trendagent.ru/v4_29/blocks/search/',
+                'sync_method' => 'syncBlock',
+                'id_field' => 'external_id',
+                'prepare_method' => 'prepareBlockData',
+            ],
+            // Parking синхронизация пока не реализована полностью
+            // Parking::class => [
+            //     'type' => 'parkings',
+            //     'endpoint' => 'https://parkings.trendagent.ru/search/places/',
+            //     'sync_method' => 'syncParking',
+            //     'id_field' => 'external_id',
+            //     'prepare_method' => 'prepareBlockData',
+            // ],
+            Village::class => [
+                'type' => 'villages',
+                'endpoint' => 'https://house-api.trendagent.ru/v1/search/villages',
+                'sync_method' => 'syncVillage',
+                'id_field' => 'external_id',
+                'prepare_method' => 'prepareVillageData',
+            ],
+            Plot::class => [
+                'type' => 'plots',
+                'endpoint' => 'https://house-api.trendagent.ru/v1/search/plots',
+                'sync_method' => 'syncPlot',
+                'id_field' => 'external_id',
+                'prepare_method' => 'preparePlotData',
+            ],
+            CommercialBlock::class => [
+                'type' => 'commercial-blocks',
+                'endpoint' => 'https://commerce.trendagent.ru/search/blocks/',
+                'sync_method' => 'syncCommercialBlock',
+                'id_field' => 'external_id',
+                'prepare_method' => 'prepareCommercialBlockData',
+            ],
+            CommercialPremise::class => [
+                'type' => 'commercial-premises',
+                'endpoint' => 'https://commerce.trendagent.ru/search/premises',
+                'sync_method' => 'syncCommercialPremise',
+                'id_field' => 'external_id',
+                'prepare_method' => 'prepareCommercialPremiseData',
+            ],
+        ];
+        
+        $class = get_class($object);
+        return $mappings[$class] ?? null;
+    }
+    
+    /**
+     * Получить модель для типа объекта
+     */
+    protected function getModelForType(string $type): ?string
+    {
+        $mappings = [
+            'blocks' => Block::class,
+            'parkings' => Parking::class,
+            'villages' => Village::class,
+            'plots' => Plot::class,
+            'commercial-blocks' => CommercialBlock::class,
+            'commercial-premises' => CommercialPremise::class,
+        ];
+        
+        return $mappings[$type] ?? null;
+    }
+    
+    /**
+     * Получить данные объекта из API
+     */
+    protected function fetchObjectFromApi($object, array $typeMapping, string $authToken): ?array
+    {
+        try {
+            $httpClient = new \GuzzleHttp\Client(['timeout' => 30, 'verify' => false]);
+            
+            // Пробуем найти объект по external_id или guid
+            $params = [
+                'city' => $object->city->guid ?? null,
+                'lang' => 'ru',
+                'count' => 1000, // Достаточно большое число для поиска
+            ];
+            
+            // Если есть guid, добавляем его (если API поддерживает)
+            if ($object->guid) {
+                $params['guid'] = $object->guid;
+            }
+            
+            $response = $httpClient->get($typeMapping['endpoint'], [
+                'query' => $params,
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $authToken,
+                    'Accept' => 'application/json',
+                ],
+            ]);
+            
+            $data = json_decode($response->getBody()->getContents(), true);
+            
+            if (!isset($data['data']) || !is_array($data['data'])) {
+                return null;
+            }
+            
+            // Ищем нужный объект в результатах
+            foreach ($data['data'] as $item) {
+                if (($object->external_id && ($item['_id'] ?? null) === $object->external_id) ||
+                    ($object->guid && ($item['guid'] ?? null) === $object->guid)) {
+                    return $item;
+                }
+            }
+            
+            return null;
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching object from API', [
+                'object_type' => get_class($object),
+                'object_id' => $object->id,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+    
+    /**
+     * Подготовить данные объекта для сравнения
+     */
+    protected function prepareDataForComparison($object, array $apiData, array $typeMapping): array
+    {
+        // Используем соответствующий метод prepare*Data
+        $prepareMethod = $typeMapping['prepare_method'] ?? null;
+        
+        if ($prepareMethod && method_exists($this, $prepareMethod)) {
+            return $this->$prepareMethod($apiData, [
+                'city_id' => $object->city_id,
+                'builder_id' => $object->builder_id ?? null,
+                'region_id' => $object->region_id ?? null,
+                'location_id' => $object->location_id ?? null,
+            ]);
+        }
+        
+        // Fallback: возвращаем исходные данные API
+        return $apiData;
     }
 }
 

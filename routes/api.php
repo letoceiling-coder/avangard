@@ -12,11 +12,16 @@ use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\TrendSsoController;
 use App\Http\Controllers\Api\BlockController;
+use App\Http\Controllers\Api\CommercialBlockController;
+use App\Http\Controllers\Api\CommercialPremiseController;
 use App\Http\Controllers\Api\DataChangeController;
 use App\Http\Controllers\Api\ParkingController;
 use App\Http\Controllers\Api\ParserErrorController;
+use App\Http\Controllers\Api\ParserScheduleController;
+use App\Http\Controllers\Api\PlotController;
 use App\Http\Controllers\Api\PriceHistoryController;
 use App\Http\Controllers\Api\RegionController;
+use App\Http\Controllers\Api\VillageController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -103,10 +108,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('support/ticket', [SupportController::class, 'store']);
             Route::post('support/message', [SupportController::class, 'sendMessage']);
             
-            // Trend Parser API - Blocks, Parkings, Parser Errors
+            // Trend Parser API - Blocks, Parkings, Villages, Plots, Commercial, Parser Errors
             Route::apiResource('blocks', BlockController::class);
             Route::get('blocks/outdated', [BlockController::class, 'outdated']);
+            Route::post('blocks/{block}/check-actuality', [BlockController::class, 'checkActuality']);
             Route::apiResource('parkings', ParkingController::class);
+            Route::get('villages/outdated', [VillageController::class, 'outdated']);
+            Route::apiResource('villages', VillageController::class);
+            Route::apiResource('plots', PlotController::class);
+            Route::apiResource('commercial-blocks', CommercialBlockController::class);
+            Route::apiResource('commercial-premises', CommercialPremiseController::class);
+            Route::apiResource('parser-schedules', ParserScheduleController::class);
             Route::apiResource('parser-errors', ParserErrorController::class)->only(['index', 'show', 'update']);
             
             // Regions and Cities

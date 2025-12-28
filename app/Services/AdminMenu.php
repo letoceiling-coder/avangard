@@ -59,6 +59,12 @@ class AdminMenu
                 'roles' => ['admin'],
             ],
             [
+                'title' => 'Парсер данных',
+                'route' => 'admin.parser',
+                'icon' => 'database',
+                'roles' => ['admin'],
+            ],
+            [
                 'title' => 'Подписка',
                 'route' => 'admin.subscription',
                 'icon' => 'credit-card',

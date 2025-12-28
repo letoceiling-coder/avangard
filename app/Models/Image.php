@@ -33,14 +33,19 @@ class Image extends Model
         'disk',
         'sort_order',
         'is_main',
+        'is_available',
+        'checked_at',
+        'last_error',
     ];
     
     protected $casts = [
         'is_main' => 'boolean',
+        'is_available' => 'boolean',
         'width' => 'integer',
         'height' => 'integer',
         'size' => 'integer',
         'sort_order' => 'integer',
+        'checked_at' => 'datetime',
     ];
     
     /**

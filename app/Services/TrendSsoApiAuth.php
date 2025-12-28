@@ -653,7 +653,7 @@ class TrendSsoApiAuth
             return $this->authData;
 
         } catch (GuzzleException $e) {
-            $response = $e->hasResponse() ? $e->getResponse() : null;
+            $response = method_exists($e, 'hasResponse') && $e->hasResponse() ? $e->getResponse() : null;
             $responseBody = $response ? $response->getBody()->getContents() : 'N/A';
             $statusCode = $response ? $response->getStatusCode() : 'N/A';
             

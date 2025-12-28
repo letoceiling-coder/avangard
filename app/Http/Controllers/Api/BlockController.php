@@ -231,5 +231,56 @@ class BlockController extends Controller
             ], 500);
         }
     }
+    
+    /**
+     * Проверить актуальность конкретного блока
+     */
+    public function checkActuality(Block $block, Request $request)
+    {
+        try {
+            $phone = $request->get('phone', env('TREND_PHONE', '+79045393434'));
+            $password = $request->get('password', env('TREND_PASSWORD', 'nwBvh4q'));
+            
+            $authService = app(\App\Services\TrendSsoApiAuth::class);
+            $authData = $authService->authenticate($phone, $password);
+            
+            if (!($authData['authenticated'] ?? false)) {
+                return response()->json([
+                    'message' => 'Ошибка авторизации в TrendAgent API',
+                    'error' => $authData['message'] ?? 'Неизвестная ошибка',
+                ], 401);
+            }
+            
+            $authToken = $authService->getAuthToken();
+            $syncService = app(\App\Services\TrendDataSyncService::class);
+            
+            $result = $syncService->checkDataActuality($block, $authToken, [
+                'update_if_changed' => $request->get('update', true),
+                'track_changes' => true,
+                'log_price_changes' => true,
+            ]);
+            
+            return response()->json([
+                'message' => $result['actual'] ? 'Данные актуальны' : ($result['updated'] ? 'Данные обновлены' : 'Обнаружены изменения'),
+                'data' => [
+                    'actual' => $result['actual'],
+                    'updated' => $result['updated'] ?? false,
+                    'changes' => $result['changes'] ?? [],
+                    'object' => $result['updated'] ? new BlockResource($result['object']) : null,
+                ],
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error checking block actuality', [
+                'block_id' => $block->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'message' => 'Ошибка при проверке актуальности',
+                'error' => config('app.debug') ? $e->getMessage() : 'Внутренняя ошибка сервера',
+            ], 500);
+        }
+    }
 }
 

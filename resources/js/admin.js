@@ -291,6 +291,31 @@ const routes = [
                 component: () => import('./pages/admin/Regions.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Регионы' },
             },
+            // Парсер данных
+            {
+                path: 'parser',
+                name: 'admin.parser.dashboard',
+                component: () => import('./pages/admin/ParserDashboard.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Парсер данных' },
+            },
+            {
+                path: 'parser/objects',
+                name: 'admin.parser.objects',
+                component: () => import('./pages/admin/ParserObjects.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Объекты парсера' },
+            },
+            {
+                path: 'parser/schedules',
+                name: 'admin.parser.schedules',
+                component: () => import('./pages/admin/ParserSchedules.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Расписания парсера' },
+            },
+            {
+                path: 'parser/errors',
+                name: 'admin.parser.errors',
+                component: () => import('./pages/admin/ParserErrors.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Ошибки парсера' },
+            },
         ],
     },
 ];
