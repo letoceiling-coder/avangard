@@ -4,6 +4,7 @@ namespace App\Models\Trend;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -12,6 +13,7 @@ class City extends Model
     use HasFactory, SoftDeletes;
     
     protected $fillable = [
+        'region_id',
         'guid',
         'name',
         'crm_id',
@@ -26,6 +28,18 @@ class City extends Model
         'sort_order' => 'integer',
     ];
     
+    /**
+     * Регион, к которому принадлежит город
+     */
+    public function region(): BelongsTo
+    {
+        return $this->belongsTo(Region::class);
+    }
+    
+    /**
+     * Старая связь для обратной совместимости (deprecated)
+     * @deprecated Используйте region() вместо regions()
+     */
     public function regions(): HasMany
     {
         return $this->hasMany(Region::class);

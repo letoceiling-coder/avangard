@@ -27,9 +27,21 @@ class Region extends Model
         'sort_order' => 'integer',
     ];
     
+    /**
+     * Город, к которому относится регион (для обратной совместимости)
+     * @deprecated Используйте cities() для получения городов региона
+     */
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
+    }
+    
+    /**
+     * Города, принадлежащие региону
+     */
+    public function cities(): HasMany
+    {
+        return $this->hasMany(City::class);
     }
     
     public function blocks(): HasMany

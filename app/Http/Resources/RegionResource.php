@@ -11,14 +11,15 @@ class RegionResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'city_id' => $this->city_id,
+            'city_id' => $this->city_id, // Для обратной совместимости
             'guid' => $this->guid,
             'name' => $this->name,
             'crm_id' => $this->crm_id,
             'external_id' => $this->external_id,
             'is_active' => $this->is_active,
             'sort_order' => $this->sort_order,
-            'city' => new CityResource($this->whenLoaded('city')),
+            'cities' => CityResource::collection($this->whenLoaded('cities')), // Города региона
+            'city' => new CityResource($this->whenLoaded('city')), // Для обратной совместимости
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

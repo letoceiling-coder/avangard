@@ -5,154 +5,125 @@ namespace Database\Seeders;
 use App\Models\Trend\City;
 use App\Models\Trend\Region;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class RegionSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * Структура: Регионы (области) → Города
      */
     public function run(): void
     {
-        // Города и регионы TrendAgent
-        $citiesData = [
-            [
-                'name' => 'Москва',
-                'guid' => 'msk',
-                'is_active' => true,
-                'sort_order' => 1,
-                'regions' => [
-                    ['name' => 'Москва', 'guid' => 'msk-city', 'is_active' => true, 'sort_order' => 1],
-                ]
-            ],
+        // Регионы (области) с их городами
+        $regionsData = [
             [
                 'name' => 'Московская область',
                 'guid' => 'mo',
                 'is_active' => true,
-                'sort_order' => 2,
-                'regions' => [
-                    ['name' => 'Московская область', 'guid' => 'mo-oblast', 'is_active' => true, 'sort_order' => 1],
-                ]
-            ],
-            [
-                'name' => 'Санкт-Петербург',
-                'guid' => 'spb',
-                'is_active' => true,
-                'sort_order' => 3,
-                'regions' => [
-                    ['name' => 'Санкт-Петербург', 'guid' => 'spb-city', 'is_active' => true, 'sort_order' => 1],
+                'sort_order' => 1,
+                'cities' => [
+                    ['name' => 'Москва', 'guid' => 'msk', 'is_active' => true, 'sort_order' => 1],
+                    // Можно добавить другие города области: Балашиха, Химки, Подольск и т.д.
                 ]
             ],
             [
                 'name' => 'Ленинградская область',
                 'guid' => 'lo',
                 'is_active' => true,
-                'sort_order' => 4,
-                'regions' => [
-                    ['name' => 'Ленинградская область', 'guid' => 'lo-oblast', 'is_active' => true, 'sort_order' => 1],
+                'sort_order' => 2,
+                'cities' => [
+                    ['name' => 'Санкт-Петербург', 'guid' => 'spb', 'is_active' => true, 'sort_order' => 1],
+                    // Можно добавить другие города области
                 ]
             ],
             [
-                'name' => 'Ростов-на-Дону',
-                'guid' => 'rostov',
+                'name' => 'Ростовская область',
+                'guid' => 'ro',
+                'is_active' => true,
+                'sort_order' => 3,
+                'cities' => [
+                    ['name' => 'Ростов-на-Дону', 'guid' => 'rostov', 'is_active' => true, 'sort_order' => 1],
+                ]
+            ],
+            [
+                'name' => 'Краснодарский край',
+                'guid' => 'kk',
+                'is_active' => true,
+                'sort_order' => 4,
+                'cities' => [
+                    ['name' => 'Краснодар', 'guid' => 'krasnodar', 'is_active' => true, 'sort_order' => 1],
+                    ['name' => 'Сочи', 'guid' => 'sochi', 'is_active' => true, 'sort_order' => 2],
+                ]
+            ],
+            [
+                'name' => 'Свердловская область',
+                'guid' => 'so',
                 'is_active' => true,
                 'sort_order' => 5,
-                'regions' => [
-                    ['name' => 'Ростов', 'guid' => 'rostov-city', 'is_active' => true, 'sort_order' => 1],
+                'cities' => [
+                    ['name' => 'Екатеринбург', 'guid' => 'ekb', 'is_active' => true, 'sort_order' => 1],
                 ]
             ],
             [
-                'name' => 'Краснодар',
-                'guid' => 'krasnodar',
+                'name' => 'Новосибирская область',
+                'guid' => 'no',
                 'is_active' => true,
                 'sort_order' => 6,
-                'regions' => [
-                    ['name' => 'Краснодар', 'guid' => 'krasnodar-city', 'is_active' => true, 'sort_order' => 1],
+                'cities' => [
+                    ['name' => 'Новосибирск', 'guid' => 'nsk', 'is_active' => true, 'sort_order' => 1],
                 ]
             ],
             [
-                'name' => 'Сочи',
-                'guid' => 'sochi',
+                'name' => 'Красноярский край',
+                'guid' => 'kr',
                 'is_active' => true,
                 'sort_order' => 7,
-                'regions' => [
-                    ['name' => 'Сочи', 'guid' => 'sochi-city', 'is_active' => true, 'sort_order' => 1],
+                'cities' => [
+                    ['name' => 'Красноярск', 'guid' => 'krasnoyarsk', 'is_active' => true, 'sort_order' => 1],
                 ]
             ],
             [
-                'name' => 'Екатеринбург',
-                'guid' => 'ekb',
+                'name' => 'Белгородская область',
+                'guid' => 'bo',
                 'is_active' => true,
                 'sort_order' => 8,
-                'regions' => [
-                    ['name' => 'Екатеринбург', 'guid' => 'ekb-city', 'is_active' => true, 'sort_order' => 1],
-                ]
-            ],
-            [
-                'name' => 'Новосибирск',
-                'guid' => 'nsk',
-                'is_active' => true,
-                'sort_order' => 9,
-                'regions' => [
-                    ['name' => 'Новосибирск', 'guid' => 'nsk-city', 'is_active' => true, 'sort_order' => 1],
-                ]
-            ],
-            [
-                'name' => 'Красноярск',
-                'guid' => 'krasnoyarsk',
-                'is_active' => true,
-                'sort_order' => 10,
-                'regions' => [
-                    ['name' => 'Красноярск', 'guid' => 'krasnoyarsk-city', 'is_active' => true, 'sort_order' => 1],
-                ]
-            ],
-            [
-                'name' => 'Белгород',
-                'guid' => 'belgorod',
-                'is_active' => true,
-                'sort_order' => 11,
-                'regions' => [
-                    ['name' => 'Белгород', 'guid' => 'belgorod-city', 'is_active' => true, 'sort_order' => 1],
+                'cities' => [
+                    ['name' => 'Белгород', 'guid' => 'belgorod', 'is_active' => true, 'sort_order' => 1],
                 ]
             ],
         ];
 
-        foreach ($citiesData as $cityData) {
-            $regions = $cityData['regions'];
-            unset($cityData['regions']);
+        foreach ($regionsData as $regionData) {
+            $cities = $regionData['cities'];
+            unset($regionData['cities']);
 
-            $city = City::firstOrCreate(
-                ['guid' => $cityData['guid']],
-                $cityData
+            // Создаем или обновляем регион (область)
+            $region = Region::firstOrCreate(
+                ['guid' => $regionData['guid']],
+                $regionData
             );
 
-            // Обновляем статус, если город уже существует
-            if ($city->wasRecentlyCreated === false) {
-                $city->update([
-                    'is_active' => $cityData['is_active'],
-                    'sort_order' => $cityData['sort_order'],
+            // Обновляем статус, если регион уже существует
+            if (!$region->wasRecentlyCreated) {
+                $region->update([
+                    'is_active' => $regionData['is_active'],
+                    'sort_order' => $regionData['sort_order'],
                 ]);
             }
 
-            // Создаем/обновляем регионы для города
-            foreach ($regions as $regionData) {
-                Region::firstOrCreate(
-                    [
-                        'city_id' => $city->id,
-                        'guid' => $regionData['guid'],
-                    ],
-                    array_merge($regionData, ['city_id' => $city->id])
+            // Создаем/обновляем города для региона
+            foreach ($cities as $cityData) {
+                $city = City::firstOrCreate(
+                    ['guid' => $cityData['guid']],
+                    array_merge($cityData, ['region_id' => $region->id])
                 );
 
-                // Обновляем статус, если регион уже существует
-                $region = Region::where('city_id', $city->id)
-                    ->where('guid', $regionData['guid'])
-                    ->first();
-                
-                if ($region) {
-                    $region->update([
-                        'is_active' => $regionData['is_active'],
-                        'sort_order' => $regionData['sort_order'],
+                // Обновляем статус, если город уже существует
+                if (!$city->wasRecentlyCreated) {
+                    $city->update([
+                        'region_id' => $region->id,
+                        'is_active' => $cityData['is_active'],
+                        'sort_order' => $cityData['sort_order'],
                     ]);
                 }
             }

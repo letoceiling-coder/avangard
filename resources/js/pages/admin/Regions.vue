@@ -32,58 +32,58 @@
         </div>
 
         <!-- Regions Tree -->
-        <div v-if="!loading && cities.length > 0" class="bg-card rounded-lg border border-border">
+        <div v-if="!loading && regions.length > 0" class="bg-card rounded-lg border border-border">
             <div class="p-6 space-y-6">
                 <div
-                    v-for="city in cities"
-                    :key="city.id"
+                    v-for="region in regions"
+                    :key="region.id"
                     class="border-b border-border last:border-b-0 pb-6 last:pb-0"
                 >
-                    <!-- City Header -->
+                    <!-- Region Header -->
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center gap-3">
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    :checked="city.is_active"
-                                    @change="toggleCity(city.id, $event.target.checked)"
+                                    :checked="region.is_active"
+                                    @change="toggleRegion(region.id, $event.target.checked)"
                                     class="w-5 h-5 rounded border-border text-accent focus:ring-accent/20"
                                 />
-                                <span class="text-lg font-semibold text-foreground">{{ city.name }}</span>
+                                <span class="text-lg font-semibold text-foreground">{{ region.name }}</span>
                             </label>
                         </div>
                         <div class="flex items-center gap-4">
                             <span class="text-sm text-muted-foreground">
-                                {{ getActiveRegionsCount(city) }} / {{ city.regions?.length || 0 }} регионов
+                                {{ getActiveCitiesCount(region) }} / {{ region.cities?.length || 0 }} городов
                             </span>
                             <button
-                                @click="toggleCityExpand(city.id)"
+                                @click="toggleRegionExpand(region.id)"
                                 class="px-3 py-1 text-xs bg-muted/50 hover:bg-muted rounded transition-colors"
                             >
-                                {{ expandedCities[city.id] ? '▼ Свернуть' : '▶ Развернуть' }}
+                                {{ expandedRegions[region.id] ? '▼ Свернуть' : '▶ Развернуть' }}
                             </button>
                         </div>
                     </div>
 
-                    <!-- Regions List -->
-                    <div v-if="expandedCities[city.id]" class="pl-8 space-y-2">
+                    <!-- Cities List -->
+                    <div v-if="expandedRegions[region.id]" class="pl-8 space-y-2">
                         <div
-                            v-for="region in city.regions"
-                            :key="region.id"
+                            v-for="city in region.cities"
+                            :key="city.id"
                             class="flex items-center justify-between p-3 rounded-lg hover:bg-muted/30 transition-colors"
                         >
                             <label class="flex items-center gap-2 cursor-pointer flex-1">
                                 <input
                                     type="checkbox"
-                                    :checked="region.is_active"
-                                    @change="toggleRegion(city.id, region.id, $event.target.checked)"
+                                    :checked="city.is_active"
+                                    @change="toggleCity(region.id, city.id, $event.target.checked)"
                                     class="w-4 h-4 rounded border-border text-accent focus:ring-accent/20"
                                 />
-                                <span class="text-sm text-foreground">{{ region.name }}</span>
+                                <span class="text-sm text-foreground">{{ city.name }}</span>
                             </label>
                         </div>
-                        <div v-if="!city.regions || city.regions.length === 0" class="text-sm text-muted-foreground pl-4">
-                            Регионы не найдены
+                        <div v-if="!region.cities || region.cities.length === 0" class="text-sm text-muted-foreground pl-4">
+                            Города не найдены
                         </div>
                     </div>
                 </div>
@@ -91,8 +91,8 @@
         </div>
 
         <!-- Empty State -->
-        <div v-if="!loading && cities.length === 0" class="bg-card rounded-lg border border-border p-12 text-center">
-            <p class="text-muted-foreground">Города не найдены</p>
+        <div v-if="!loading && regions.length === 0" class="bg-card rounded-lg border border-border p-12 text-center">
+            <p class="text-muted-foreground">Регионы не найдены</p>
         </div>
     </div>
 </template>
@@ -108,8 +108,8 @@ export default {
         const loading = ref(false)
         const saving = ref(false)
         const error = ref(null)
-        const cities = ref([])
-        const expandedCities = ref({})
+        const regions = ref([])
+        const expandedRegions = ref({})
         const changes = ref({
             cities: {},
             regions: {}
@@ -120,16 +120,16 @@ export default {
             return Object.keys(changes.value.cities).length > 0 || Object.keys(changes.value.regions).length > 0
         })
 
-        // Подсчет активных регионов для города
-        const getActiveRegionsCount = (city) => {
-            if (!city.regions || city.regions.length === 0) return 0
-            return city.regions.filter(r => {
-                const regionId = r.id
-                // Проверяем, есть ли изменение для этого региона
-                if (changes.value.regions[regionId] !== undefined) {
-                    return changes.value.regions[regionId]
+        // Подсчет активных городов для региона
+        const getActiveCitiesCount = (region) => {
+            if (!region.cities || region.cities.length === 0) return 0
+            return region.cities.filter(c => {
+                const cityId = c.id
+                // Проверяем, есть ли изменение для этого города
+                if (changes.value.cities[cityId] !== undefined) {
+                    return changes.value.cities[cityId]
                 }
-                return r.is_active
+                return c.is_active
             }).length
         }
 
@@ -143,11 +143,11 @@ export default {
                     throw new Error('Ошибка загрузки регионов')
                 }
                 const data = await response.json()
-                cities.value = data.data || []
+                regions.value = data.data || []
                 
-                // Разворачиваем все города по умолчанию
-                cities.value.forEach(city => {
-                    expandedCities.value[city.id] = true
+                // Разворачиваем все регионы по умолчанию
+                regions.value.forEach(region => {
+                    expandedRegions.value[region.id] = true
                 })
             } catch (err) {
                 error.value = err.message || 'Ошибка загрузки регионов'
@@ -156,34 +156,34 @@ export default {
             }
         }
 
-        // Переключение города
-        const toggleCity = (cityId, isActive) => {
-            changes.value.cities[cityId] = isActive
-            
-            // Обновляем визуально
-            const city = cities.value.find(c => c.id === cityId)
-            if (city) {
-                city.is_active = isActive
-            }
-        }
-
         // Переключение региона
-        const toggleRegion = (cityId, regionId, isActive) => {
+        const toggleRegion = (regionId, isActive) => {
             changes.value.regions[regionId] = isActive
             
             // Обновляем визуально
-            const city = cities.value.find(c => c.id === cityId)
-            if (city && city.regions) {
-                const region = city.regions.find(r => r.id === regionId)
-                if (region) {
-                    region.is_active = isActive
+            const region = regions.value.find(r => r.id === regionId)
+            if (region) {
+                region.is_active = isActive
+            }
+        }
+
+        // Переключение города
+        const toggleCity = (regionId, cityId, isActive) => {
+            changes.value.cities[cityId] = isActive
+            
+            // Обновляем визуально
+            const region = regions.value.find(r => r.id === regionId)
+            if (region && region.cities) {
+                const city = region.cities.find(c => c.id === cityId)
+                if (city) {
+                    city.is_active = isActive
                 }
             }
         }
 
-        // Переключение развертывания города
-        const toggleCityExpand = (cityId) => {
-            expandedCities.value[cityId] = !expandedCities.value[cityId]
+        // Переключение развертывания региона
+        const toggleRegionExpand = (regionId) => {
+            expandedRegions.value[regionId] = !expandedRegions.value[regionId]
         }
 
         // Сохранение всех изменений
@@ -261,14 +261,14 @@ export default {
             loading,
             saving,
             error,
-            cities,
-            expandedCities,
+            regions,
+            expandedRegions,
             changes,
             hasChanges,
-            getActiveRegionsCount,
-            toggleCity,
+            getActiveCitiesCount,
             toggleRegion,
-            toggleCityExpand,
+            toggleCity,
+            toggleRegionExpand,
             saveAll
         }
     }

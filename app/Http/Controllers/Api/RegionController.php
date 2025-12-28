@@ -13,29 +13,35 @@ use Illuminate\Support\Facades\Log;
 class RegionController extends Controller
 {
     /**
-     * Получить список городов с регионами (дерево)
+     * Получить список регионов с городами (дерево: Регионы → Города)
      */
     public function index(Request $request)
     {
         try {
-            $cities = City::with(['regions' => function ($query) {
-                $query->orderBy('sort_order')->orderBy('name');
-            }])
+            // Получаем регионы (области) с их городами
+            $regions = Region::whereNull('city_id') // Только корневые регионы (области)
+                ->with(['cities' => function ($query) {
+                    $query->orderBy('sort_order')->orderBy('name');
+                }])
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get();
 
             return response()->json([
-                'data' => CityResource::collection($cities),
+                'data' => RegionResource::collection($regions),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error fetching cities with regions', [
+            Log::error('Error fetching regions with cities', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
-                'message' => 'Ошибка при получении списка городов и регионов',
+                'message' => 'Ошибка при получении списка регионов и городов',
                 'error' => config('app.debug') ? $e->getMessage() : 'Внутренняя ошибка сервера',
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null,
             ], 500);
         }
     }
@@ -52,7 +58,7 @@ class RegionController extends Controller
 
             $city->update($request->only('is_active'));
 
-            $city->load('regions');
+            $city->load('region');
 
             return response()->json([
                 'message' => 'Статус города обновлен',
@@ -73,6 +79,7 @@ class RegionController extends Controller
 
     /**
      * Обновить статус активности региона
+     * @deprecated Используйте bulkUpdateRegions для массового обновления
      */
     public function updateRegion(Request $request, Region $region)
     {
@@ -83,7 +90,7 @@ class RegionController extends Controller
 
             $region->update($request->only('is_active'));
 
-            $region->load('city');
+            $region->load('cities');
 
             return response()->json([
                 'message' => 'Статус региона обновлен',
