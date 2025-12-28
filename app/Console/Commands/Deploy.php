@@ -667,7 +667,15 @@ class Deploy extends Command
                         }
                     }
                 } else {
-                    // HTTP ошибка, пробуем еще раз (если остались попытки)
+                    // Проверяем тип ошибки - для ошибок аутентификации не делаем повторные попытки
+                    $statusCode = $lastResponse->status();
+                    if ($statusCode === 401 || $statusCode === 403) {
+                        // Ошибка аутентификации - не имеет смысла повторять
+                        $deploymentSuccessful = false;
+                        break;
+                    }
+                    
+                    // Для других HTTP ошибок пробуем еще раз (если остались попытки)
                     if ($attempt < $maxRetries) {
                         continue;
                     }
