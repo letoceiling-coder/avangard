@@ -314,11 +314,31 @@ class DeployController extends Controller
             }
 
             // 1. Получаем последние изменения из репозитория
-            // Сначала делаем полный fetch всех веток, чтобы гарантировать получение всех изменений
-            Log::info("📥 Выполняем git fetch origin...");
+            // Если ожидается конкретный коммит, сначала проверяем его через ls-remote
+            if ($expectedCommitHash && strlen($expectedCommitHash) === 40) {
+                Log::info("🔍 Проверяем наличие коммита в remote через ls-remote...");
+                $lsRemoteProcess = Process::path($this->basePath)
+                    ->env($gitEnv)
+                    ->run($gitBaseCmd . ' ls-remote origin ' . escapeshellarg('refs/heads/' . $branch) . ' 2>&1');
+                
+                if ($lsRemoteProcess->successful()) {
+                    $remoteRefs = trim($lsRemoteProcess->output());
+                    Log::info("📍 Remote refs для {$branch}: " . substr($remoteRefs, 0, 100));
+                    
+                    // Проверяем, содержит ли remote наш коммит
+                    if (str_contains($remoteRefs, $expectedCommitHash)) {
+                        Log::info("✅ Ожидаемый коммит найден в remote через ls-remote");
+                    } else {
+                        Log::warning("⚠️ Ожидаемый коммит не найден в remote через ls-remote. Remote показывает другой коммит.");
+                    }
+                }
+            }
+            
+            // Сначала делаем полный fetch всех веток с принудительным обновлением
+            Log::info("📥 Выполняем git fetch origin --prune --update-head-ok...");
             $fetchAllProcess = Process::path($this->basePath)
                 ->env($gitEnv)
-                ->run($gitBaseCmd . ' fetch origin --prune 2>&1');
+                ->run($gitBaseCmd . ' fetch origin --prune --update-head-ok 2>&1');
 
             if (!$fetchAllProcess->successful()) {
                 Log::warning('⚠️ Не удалось выполнить git fetch origin', [
@@ -329,19 +349,25 @@ class DeployController extends Controller
                 Log::info('✅ Git fetch origin выполнен успешно');
             }
 
-            // Дополнительно обновляем конкретную ветку
-            Log::info("📥 Выполняем git fetch origin {$branch}...");
+            // Дополнительно обновляем конкретную ветку с принудительным обновлением refs
+            Log::info("📥 Выполняем git fetch origin {$branch} с принудительным обновлением...");
+            $fetchBranchCmd = $gitBaseCmd . ' fetch origin ' . escapeshellarg('refs/heads/' . $branch . ':refs/remotes/origin/' . $branch);
             $fetchProcess = Process::path($this->basePath)
                 ->env($gitEnv)
-                ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1');
+                ->run($fetchBranchCmd . ' 2>&1');
 
             if (!$fetchProcess->successful()) {
-                Log::warning('⚠️ Не удалось выполнить git fetch для ветки', [
+                Log::warning('⚠️ Не удалось выполнить git fetch для ветки с принудительным обновлением, пробуем обычный fetch...', [
                     'output' => $fetchProcess->output(),
                     'error' => $fetchProcess->errorOutput(),
                 ]);
+                
+                // Fallback на обычный fetch
+                $fetchProcess = Process::path($this->basePath)
+                    ->env($gitEnv)
+                    ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1');
             } else {
-                Log::info('✅ Git fetch для ветки выполнен успешно');
+                Log::info('✅ Git fetch для ветки выполнен успешно с принудительным обновлением');
             }
 
             // Проверяем, что origin/{branch} существует
