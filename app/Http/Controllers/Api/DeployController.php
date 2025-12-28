@@ -353,20 +353,50 @@ class DeployController extends Controller
             }
 
             // 2. Сбрасываем локальную ветку на origin/{branch} (принудительное обновление)
+            // Сначала пробуем reset --hard
             Log::info("🔄 Выполняем git reset --hard origin/{$branch}...");
             $process = Process::path($this->basePath)
                 ->env($gitEnv)
                 ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
 
             if (!$process->successful()) {
-                Log::warning('Git reset --hard не удался, пробуем git pull', [
+                Log::warning('Git reset --hard не удался, пробуем альтернативные методы', [
                     'error' => $process->errorOutput(),
+                    'output' => $process->output(),
                 ]);
 
-                // Если reset не удался, пробуем обычный pull
-                $process = Process::path($this->basePath)
+                // Пробуем сначала обновить ссылку на remote
+                Log::info("🔄 Обновляем ссылку на remote ветку...");
+                $updateRefProcess = Process::path($this->basePath)
                     ->env($gitEnv)
-                    ->run($gitBaseCmd . ' pull origin ' . escapeshellarg($branch) . ' --no-rebase --force 2>&1');
+                    ->run($gitBaseCmd . ' update-ref refs/heads/' . escapeshellarg($branch) . ' origin/' . escapeshellarg($branch) . ' 2>&1');
+                
+                if ($updateRefProcess->successful()) {
+                    Log::info('✅ Ссылка на ветку обновлена через update-ref');
+                    // Затем делаем reset
+                    $process = Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' reset --hard HEAD 2>&1');
+                } else {
+                    // Если update-ref не сработал, пробуем pull с force
+                    Log::info("🔄 Пробуем git pull с force...");
+                    $process = Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' pull origin ' . escapeshellarg($branch) . ' --no-rebase --force 2>&1');
+                }
+            }
+            
+            // Проверяем результат и логируем вывод для диагностики
+            if ($process->successful()) {
+                $output = $process->output();
+                if (!empty(trim($output))) {
+                    Log::info('Git reset/pull вывод: ' . substr($output, 0, 500));
+                }
+            } else {
+                Log::error('Не удалось обновить код через все методы', [
+                    'error' => $process->errorOutput(),
+                    'output' => $process->output(),
+                ]);
             }
 
             // 3. Получаем новый commit после обновления
