@@ -549,7 +549,41 @@ class DeployController extends Controller
      */
     protected function getComposerPath(): string
     {
-        // 1. Проверить локальный composer в директории проекта (приоритет - веб-сервер имеет доступ)
+        // 1. Проверить явно указанный путь в .env (высший приоритет)
+        $composerPath = env('COMPOSER_PATH');
+        if ($composerPath && $composerPath !== '' && $composerPath !== 'composer') {
+            // Обрезаем пробелы и кавычки, проверяем, что путь не пустой
+            $composerPath = trim($composerPath);
+            $composerPath = trim($composerPath, '"\'');
+            if ($composerPath) {
+                // Проверяем, существует ли файл
+                try {
+                    $testProcess = Process::run("test -f " . escapeshellarg($composerPath) . " && echo 'exists' 2>&1");
+                    if ($testProcess->successful() && trim($testProcess->output()) === 'exists') {
+                        Log::info("Composer найден по пути из .env: {$composerPath}");
+                        return $composerPath;
+                    } else {
+                        Log::warning("Composer путь из .env не существует: {$composerPath}");
+                    }
+                } catch (\Exception $e) {
+                    Log::warning("Ошибка проверки composer пути из .env: " . $e->getMessage());
+                }
+            }
+        }
+
+        // 2. Проверить локальный composer.phar в директории проекта (приоритет - веб-сервер имеет доступ)
+        $localComposerPhar = $this->basePath . '/bin/composer.phar';
+        try {
+            $testProcess = Process::run("test -f " . escapeshellarg($localComposerPhar) . " && echo 'exists' 2>&1");
+            if ($testProcess->successful() && trim($testProcess->output()) === 'exists') {
+                Log::info("Composer найден локально в проекте: {$localComposerPhar}");
+                return $localComposerPhar;
+            }
+        } catch (\Exception $e) {
+            // Игнорируем ошибку
+        }
+        
+        // 3. Проверить также обычный composer (без .phar)
         $localComposer = $this->basePath . '/bin/composer';
         try {
             $testProcess = Process::run("test -f " . escapeshellarg($localComposer) . " && echo 'exists' 2>&1");
@@ -561,7 +595,7 @@ class DeployController extends Controller
             // Игнорируем ошибку
         }
 
-        // 2. Если локального composer нет - попробовать скачать его
+        // 4. Если локального composer нет - попробовать скачать его
         try {
             $binDir = $this->basePath . '/bin';
             if (!is_dir($binDir)) {
@@ -590,19 +624,7 @@ class DeployController extends Controller
             Log::warning("Не удалось скачать composer: " . $e->getMessage());
         }
 
-        // 3. Проверить явно указанный путь в .env
-        $composerPath = env('COMPOSER_PATH');
-        if ($composerPath && $composerPath !== '' && $composerPath !== 'composer') {
-            // Обрезаем пробелы и кавычки, проверяем, что путь не пустой
-            $composerPath = trim($composerPath);
-            $composerPath = trim($composerPath, '"\'');
-            if ($composerPath) {
-                Log::info("Composer путь из .env: {$composerPath}");
-                return $composerPath;
-            }
-        }
-
-        // 4. Попробовать найти composer через which (может не работать через веб-сервер)
+        // 5. Попробовать найти composer через which (может не работать через веб-сервер)
         try {
             $whichProcess = Process::run('which composer 2>&1');
             if ($whichProcess->successful()) {
@@ -616,7 +638,7 @@ class DeployController extends Controller
             Log::warning("Ошибка при поиске composer через which: " . $e->getMessage());
         }
         
-        // 5. Попробовать найти composer в стандартных местах
+        // 6. Попробовать найти composer в стандартных местах
         $possiblePaths = [
             '/usr/local/bin/composer',
             '/usr/bin/composer',
@@ -635,7 +657,7 @@ class DeployController extends Controller
             }
         }
 
-        // 6. Последний fallback - возвращаем пустую строку (будет ошибка при выполнении)
+        // 7. Последний fallback - возвращаем пустую строку (будет ошибка при выполнении)
         Log::error("Composer не найден нигде. Установите composer или укажите COMPOSER_PATH в .env");
         return '';
     }
