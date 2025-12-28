@@ -185,70 +185,121 @@ class UpdateCitiesExternalId extends Command
     /**
      * Получить external_id (MongoDB ObjectId) для города из API
      * 
-     * Пытается получить ObjectId из ответа API blocks
+     * Пытается получить ObjectId из ответов API других типов объектов,
+     * которые работают с guid городов (parkings, villages, commercial-blocks)
      */
     protected function getCityExternalId(City $city): ?string
     {
-        try {
-            // Пробуем получить из API blocks (даже если city передается как guid,
-            // в ответе может быть информация о городе с его _id)
-            $endpoint = 'https://api.trendagent.ru/v4_29/blocks/search/';
-            
-            // Для blocks API нужно использовать external_id, но его у нас еще нет
-            // Попробуем другой подход - используем endpoint, который может работать с guid
-            // или попробуем получить из первого блока в ответе
-            
-            // Альтернативный подход: попробовать использовать guid и посмотреть в ответе
-            // Если API вернет ошибку, но в некоторых случаях может вернуть данные о городе
-            
-            // Но самый надежный способ - попробовать получить через endpoint /cities или подобный
-            // Пока используем подход: делаем запрос к blocks API и смотрим, есть ли в ответе информация о городе
-            
-            // Попробуем сделать запрос с минимальными параметрами
-            $response = $this->httpClient->get($endpoint, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->authToken,
-                    'Accept' => 'application/json',
-                ],
-                'query' => [
+        // Пробуем разные endpoints, которые работают с guid города
+        $endpoints = [
+            // Parkings API - работает с guid
+            [
+                'url' => 'https://parkings.trendagent.ru/search/places/',
+                'params' => [
+                    'city' => $city->guid,
                     'lang' => 'ru',
-                    'count' => 1,
+                    'count' => 10, // Берем больше, чтобы найти объекты с информацией о городе
+                ],
+            ],
+            // Villages API - работает с guid
+            [
+                'url' => 'https://house-api.trendagent.ru/v1/search/villages',
+                'params' => [
+                    'city' => $city->guid,
+                    'lang' => 'ru',
+                    'count' => 10,
+                ],
+            ],
+            // Commercial blocks API - работает с guid
+            [
+                'url' => 'https://commerce.trendagent.ru/search/blocks/',
+                'params' => [
+                    'city' => $city->guid,
+                    'lang' => 'ru',
+                    'count' => 10,
                     'show_type' => 'list',
                 ],
-            ]);
+            ],
+        ];
 
-            if ($response->getStatusCode() === 200) {
-                $data = json_decode($response->getBody()->getContents(), true);
+        foreach ($endpoints as $endpointConfig) {
+            try {
+                $response = $this->httpClient->get($endpointConfig['url'], [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $this->authToken,
+                        'Accept' => 'application/json',
+                    ],
+                    'query' => $endpointConfig['params'],
+                ]);
+
+                if ($response->getStatusCode() === 200) {
+                    $data = json_decode($response->getBody()->getContents(), true);
+                    
+                    // Ищем информацию о городе в ответе
+                    $cityId = $this->extractCityIdFromResponse($data, $city->guid);
+                    
+                    if ($cityId) {
+                        Log::info('UpdateCitiesExternalId: Found city ObjectId', [
+                            'city_guid' => $city->guid,
+                            'city_name' => $city->name,
+                            'external_id' => $cityId,
+                            'source_endpoint' => $endpointConfig['url'],
+                        ]);
+                        return $cityId;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Продолжаем пробовать другие endpoints
+                Log::debug('UpdateCitiesExternalId: Endpoint failed', [
+                    'city_guid' => $city->guid,
+                    'endpoint' => $endpointConfig['url'],
+                    'error' => $e->getMessage(),
+                ]);
+                continue;
+            }
+        }
+
+        // Если не нашли в API, возвращаем null
+        return null;
+    }
+
+    /**
+     * Извлечь ObjectId города из ответа API
+     */
+    protected function extractCityIdFromResponse(array $data, string $cityGuid): ?string
+    {
+        // Проверяем разные структуры ответа
+        $items = $data['data']['results'] ?? $data['data'] ?? $data['results'] ?? $data['items'] ?? [];
+        
+        if (!is_array($items)) {
+            return null;
+        }
+
+        foreach ($items as $item) {
+            // Проверяем поле city в разных форматах
+            $cityData = $item['city'] ?? $item['City'] ?? null;
+            
+            if (is_array($cityData)) {
+                // Проверяем, совпадает ли guid
+                $itemCityGuid = $cityData['guid'] ?? $cityData['GUID'] ?? null;
                 
-                // Ищем информацию о городе в ответе
-                if (isset($data['data']) && is_array($data['data']) && !empty($data['data'])) {
-                    foreach ($data['data'] as $block) {
-                        // Проверяем, есть ли информация о городе в блоке
-                        if (isset($block['city'])) {
-                            $cityData = $block['city'];
-                            
-                            // Проверяем, совпадает ли guid города
-                            if (isset($cityData['guid']) && $cityData['guid'] === $city->guid) {
-                                // Возвращаем _id города, если он есть
-                                if (isset($cityData['_id'])) {
-                                    return $cityData['_id'];
-                                }
-                            }
-                        }
+                if ($itemCityGuid === $cityGuid) {
+                    // Возвращаем _id города
+                    $cityId = $cityData['_id'] ?? $cityData['id'] ?? null;
+                    if ($cityId && strlen($cityId) === 24) { // MongoDB ObjectId всегда 24 символа
+                        return (string) $cityId;
                     }
                 }
             }
-        } catch (\Exception $e) {
-            // Если блоки не работают, пробуем другой endpoint
-            Log::debug('UpdateCitiesExternalId: Blocks API approach failed', [
-                'city_guid' => $city->guid,
-                'error' => $e->getMessage(),
-            ]);
+            
+            // Также проверяем, может быть city это строка (ObjectId)
+            if (isset($item['city']) && is_string($item['city']) && strlen($item['city']) === 24) {
+                // Это может быть ObjectId города напрямую, но нам нужно проверить, что это правильный город
+                // Для этого нужна дополнительная проверка, но пока просто возвращаем первый найденный
+                // В реальности лучше проверить через другой запрос или использовать другой подход
+            }
         }
 
-        // Альтернативный подход: попробовать через endpoint списка городов (если есть)
-        // Или использовать другие способы получения ObjectId
-        
         return null;
     }
 }
