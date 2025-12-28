@@ -87,6 +87,7 @@ class ParseTrendData extends Command
      */
     public function handle(): int
     {
+        $startTime = microtime(true);
         $this->info('🚀 Начало парсинга данных TrendAgent...');
         $this->newLine();
 
@@ -100,13 +101,21 @@ class ParseTrendData extends Command
 
         // Авторизация
         if (!$this->authenticate()) {
+            $executionTime = microtime(true) - $startTime;
+            Log::warning('ParseTrendData: Failed authentication', [
+                'execution_time_seconds' => round($executionTime, 2),
+            ]);
             return 1;
         }
 
         // Получение списка городов
         $cities = $this->getCities();
         if ($cities->isEmpty()) {
+            $executionTime = microtime(true) - $startTime;
             $this->error('❌ Не найдено активных городов для парсинга');
+            Log::warning('ParseTrendData: No active cities found', [
+                'execution_time_seconds' => round($executionTime, 2),
+            ]);
             return 1;
         }
 
@@ -116,8 +125,12 @@ class ParseTrendData extends Command
         // Определение типов объектов для парсинга
         $typesToParse = $this->getTypesToParse();
         if (empty($typesToParse)) {
+            $executionTime = microtime(true) - $startTime;
             $this->error('❌ Не указаны типы объектов для парсинга');
             $this->line('Доступные типы: ' . implode(', ', array_keys($this->objectTypes)));
+            Log::warning('ParseTrendData: No object types specified', [
+                'execution_time_seconds' => round($executionTime, 2),
+            ]);
             return 1;
         }
 
@@ -136,6 +149,22 @@ class ParseTrendData extends Command
 
         // Вывод итоговой статистики
         $this->displayStats();
+        
+        // Вычисление времени выполнения
+        $endTime = microtime(true);
+        $executionTime = $endTime - $startTime;
+        $executionTimeFormatted = $this->formatExecutionTime($executionTime);
+        
+        $this->newLine();
+        $this->info("⏱️  Время выполнения: {$executionTimeFormatted}");
+        $this->newLine();
+        
+        // Логирование времени выполнения
+        Log::info('ParseTrendData: Parsing completed', [
+            'execution_time_seconds' => round($executionTime, 2),
+            'execution_time_formatted' => $executionTimeFormatted,
+            'stats' => $this->stats,
+        ]);
         
         // Сохраняем статистику для возможного использования в планировщике
         $this->lastRunStats = $this->stats;
@@ -434,5 +463,28 @@ class ParseTrendData extends Command
     public function getLastRunStats(): ?array
     {
         return $this->stats;
+    }
+    
+    /**
+     * Форматирование времени выполнения
+     */
+    protected function formatExecutionTime(float $seconds): string
+    {
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $secs = round($seconds % 60, 2);
+        
+        $parts = [];
+        if ($hours > 0) {
+            $parts[] = $hours . ' ч';
+        }
+        if ($minutes > 0) {
+            $parts[] = $minutes . ' мин';
+        }
+        if ($secs > 0 || empty($parts)) {
+            $parts[] = $secs . ' сек';
+        }
+        
+        return implode(' ', $parts);
     }
 }
