@@ -32,19 +32,19 @@
             <h2 class="text-lg font-semibold mb-4">Быстрые действия</h2>
             <div class="flex flex-wrap gap-4">
                 <router-link
-                    to="/admin/parser/objects"
+                    to="/parser/objects"
                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
                 >
                     Просмотр объектов
                 </router-link>
                 <router-link
-                    to="/admin/parser/schedules"
+                    to="/parser/schedules"
                     class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
                 >
                     Управление расписаниями
                 </router-link>
                 <router-link
-                    to="/admin/parser/errors"
+                    to="/parser/errors"
                     class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
                 >
                     Просмотр ошибок
