@@ -14,26 +14,35 @@ return new class extends Migration
     public function up(): void
     {
         $connection = DB::connection();
-        $database = $connection->getDatabaseName();
+        $driver = $connection->getDriverName();
 
-        // Шаг 1: Удаляем foreign keys через прямой SQL (безопаснее)
-        // Получаем все foreign keys для таблиц поддержки
-        $foreignKeys = DB::select("
-            SELECT 
-                CONSTRAINT_NAME,
-                TABLE_NAME
-            FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = ?
-            AND TABLE_NAME IN ('support_tickets', 'support_ticket_messages', 'ticket_chats', 'message_sync_logs')
-            AND REFERENCED_TABLE_NAME IS NOT NULL
-        ", [$database]);
+        // Для MySQL/MariaDB удаляем foreign keys через information_schema
+        if ($driver === 'mysql') {
+            $database = $connection->getDatabaseName();
 
-        // Удаляем каждый foreign key
-        foreach ($foreignKeys as $fk) {
+            // Шаг 1: Удаляем foreign keys через прямой SQL (безопаснее)
+            // Получаем все foreign keys для таблиц поддержки
             try {
-                DB::statement("ALTER TABLE `{$fk->TABLE_NAME}` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+                $foreignKeys = DB::select("
+                    SELECT 
+                        CONSTRAINT_NAME,
+                        TABLE_NAME
+                    FROM information_schema.KEY_COLUMN_USAGE
+                    WHERE TABLE_SCHEMA = ?
+                    AND TABLE_NAME IN ('support_tickets', 'support_ticket_messages', 'ticket_chats', 'message_sync_logs')
+                    AND REFERENCED_TABLE_NAME IS NOT NULL
+                ", [$database]);
+
+                // Удаляем каждый foreign key
+                foreach ($foreignKeys as $fk) {
+                    try {
+                        DB::statement("ALTER TABLE `{$fk->TABLE_NAME}` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+                    } catch (\Exception $e) {
+                        // Игнорируем ошибку, если foreign key уже удален
+                    }
+                }
             } catch (\Exception $e) {
-                // Игнорируем ошибку, если foreign key уже удален
+                // Игнорируем ошибку для SQLite и других драйверов
             }
         }
 

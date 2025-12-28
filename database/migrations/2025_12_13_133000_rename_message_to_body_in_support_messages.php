@@ -9,8 +9,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Переименовываем message в body (если колонка message существует и body еще нет)
-        if (Schema::hasColumn('support_messages', 'message') && !Schema::hasColumn('support_messages', 'body')) {
+        // Переименовываем message в body (только для MySQL)
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'mysql' && Schema::hasColumn('support_messages', 'message') && !Schema::hasColumn('support_messages', 'body')) {
             DB::statement('ALTER TABLE support_messages CHANGE message body TEXT NOT NULL');
         }
     }

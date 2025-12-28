@@ -17,19 +17,27 @@ return new class extends Migration
         }
         
         // Добавляем индекс для external_id (если еще не существует)
-        $indexes = DB::select("SHOW INDEXES FROM support_tickets WHERE Key_name = 'support_tickets_external_id_index'");
-        if (empty($indexes)) {
-            try {
+        $driver = DB::connection()->getDriverName();
+        try {
+            if ($driver === 'mysql') {
+                $indexes = DB::select("SHOW INDEXES FROM support_tickets WHERE Key_name = 'support_tickets_external_id_index'");
+                if (empty($indexes)) {
+                    Schema::table('support_tickets', function (Blueprint $table) {
+                        $table->index('external_id');
+                    });
+                }
+            } else {
+                // Для других драйверов просто добавляем индекс
                 Schema::table('support_tickets', function (Blueprint $table) {
                     $table->index('external_id');
                 });
-            } catch (\Exception $e) {
-                // Индекс уже существует или другая ошибка - игнорируем
             }
+        } catch (\Exception $e) {
+            // Индекс уже существует или другая ошибка - игнорируем
         }
 
-        // Переименовываем theme в subject (MySQL требует через DB::statement)
-        if (Schema::hasColumn('support_tickets', 'theme')) {
+        // Переименовываем theme в subject (только для MySQL)
+        if ($driver === 'mysql' && Schema::hasColumn('support_tickets', 'theme')) {
             DB::statement('ALTER TABLE support_tickets CHANGE theme subject VARCHAR(255) NOT NULL');
         }
 
@@ -41,8 +49,18 @@ return new class extends Migration
         }
         
         // Добавляем индекс для external_message_id (если еще не существует)
-        $indexes = DB::select("SHOW INDEXES FROM support_messages WHERE Key_name = 'support_messages_external_message_id_index'");
-        if (empty($indexes)) {
+        if ($driver === 'mysql') {
+            try {
+                $indexes = DB::select("SHOW INDEXES FROM support_messages WHERE Key_name = 'support_messages_external_message_id_index'");
+                if (empty($indexes)) {
+                    Schema::table('support_messages', function (Blueprint $table) {
+                        $table->index('external_message_id');
+                    });
+                }
+            } catch (\Exception $e) {
+                // Индекс уже существует или другая ошибка - игнорируем
+            }
+        } else {
             try {
                 Schema::table('support_messages', function (Blueprint $table) {
                     $table->index('external_message_id');
@@ -52,32 +70,37 @@ return new class extends Migration
             }
         }
 
-        // Переименовываем message в body (если колонка message существует)
-        if (Schema::hasColumn('support_messages', 'message') && !Schema::hasColumn('support_messages', 'body')) {
+        // Переименовываем message в body (только для MySQL)
+        if ($driver === 'mysql' && Schema::hasColumn('support_messages', 'message') && !Schema::hasColumn('support_messages', 'body')) {
             DB::statement('ALTER TABLE support_messages CHANGE message body TEXT NOT NULL');
         }
 
-        // Изменяем enum sender: local|crm → tma|crm
-        // Проверяем текущий тип колонки, чтобы не выполнять лишние операции
-        $columnInfo = DB::select("SHOW COLUMNS FROM support_messages WHERE Field = 'sender'");
-        if (!empty($columnInfo)) {
-            $columnType = $columnInfo[0]->Type;
-            
-            // Если ENUM еще содержит 'local', выполняем миграцию
-            if (str_contains($columnType, 'local')) {
-                // Сначала расширяем ENUM, чтобы включить 'tma' (если его еще нет)
-                // Это безопасно, так как не удаляет существующие значения
-                if (!str_contains($columnType, 'tma')) {
-                    DB::statement("ALTER TABLE support_messages MODIFY COLUMN sender ENUM('local', 'tma', 'crm') NOT NULL");
+        // Изменяем enum sender: local|crm → tma|crm (только для MySQL)
+        if ($driver === 'mysql') {
+            try {
+                $columnInfo = DB::select("SHOW COLUMNS FROM support_messages WHERE Field = 'sender'");
+                if (!empty($columnInfo)) {
+                    $columnType = $columnInfo[0]->Type;
+                    
+                    // Если ENUM еще содержит 'local', выполняем миграцию
+                    if (str_contains($columnType, 'local')) {
+                        // Сначала расширяем ENUM, чтобы включить 'tma' (если его еще нет)
+                        // Это безопасно, так как не удаляет существующие значения
+                        if (!str_contains($columnType, 'tma')) {
+                            DB::statement("ALTER TABLE support_messages MODIFY COLUMN sender ENUM('local', 'tma', 'crm') NOT NULL");
+                        }
+                        
+                        // Теперь обновляем все существующие записи с 'local' на 'tma'
+                        DB::table('support_messages')
+                            ->where('sender', 'local')
+                            ->update(['sender' => 'tma']);
+                        
+                        // Затем удаляем 'local' из ENUM, оставляя только 'tma' и 'crm'
+                        DB::statement("ALTER TABLE support_messages MODIFY COLUMN sender ENUM('tma', 'crm') NOT NULL");
+                    }
                 }
-                
-                // Теперь обновляем все существующие записи с 'local' на 'tma'
-                DB::table('support_messages')
-                    ->where('sender', 'local')
-                    ->update(['sender' => 'tma']);
-                
-                // Затем удаляем 'local' из ENUM, оставляя только 'tma' и 'crm'
-                DB::statement("ALTER TABLE support_messages MODIFY COLUMN sender ENUM('tma', 'crm') NOT NULL");
+            } catch (\Exception $e) {
+                // Игнорируем ошибки для других драйверов
             }
         }
     }

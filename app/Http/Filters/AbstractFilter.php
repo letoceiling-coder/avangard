@@ -23,7 +23,7 @@ abstract class AbstractFilter implements FilterInterface
 
     abstract protected function getCallbacks(): array;
 
-    public function apply(Builder $builder)
+    public function apply(Builder $builder): void
     {
         $this->before($builder);
 

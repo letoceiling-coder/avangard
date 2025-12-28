@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\TrendSsoController;
+use App\Http\Controllers\Api\BlockController;
+use App\Http\Controllers\Api\ParkingController;
+use App\Http\Controllers\Api\ParserErrorController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -96,6 +99,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('support/tickets/{id}', [SupportController::class, 'show']);
             Route::post('support/ticket', [SupportController::class, 'store']);
             Route::post('support/message', [SupportController::class, 'sendMessage']);
+            
+            // Trend Parser API - Blocks, Parkings, Parser Errors
+            Route::apiResource('blocks', BlockController::class);
+            Route::apiResource('parkings', ParkingController::class);
+            Route::apiResource('parser-errors', ParserErrorController::class)->only(['index', 'show', 'update']);
         });
     });
 });

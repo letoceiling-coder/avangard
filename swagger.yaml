@@ -1,0 +1,729 @@
+openapi: 3.0.3
+info:
+  title: TrendAgent Parser API
+  description: |
+    API для работы с данными из парсера TrendAgent.
+    
+    ## Аутентификация
+    Все запросы требуют Bearer токен авторизации через Laravel Sanctum.
+    
+    ## Типы объектов
+    - **blocks** - ЖК / Блоки квартир
+    - **parkings** - Парковочные места
+    - **villages** - Поселки / Дома с участками
+    - **commercial-blocks** - Коммерческие блоки
+    
+    ## Источники данных
+    - **parser** - Данные из парсера TrendAgent API
+    - **manual** - Создано вручную через админку
+    - **feed** - Загружено через файл/feed
+    - **import** - Импортировано из другого источника
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost/api/v1
+    description: Local development server
+  - url: https://api.example.com/v1
+    description: Production server
+
+tags:
+  - name: Blocks
+    description: Управление блоками (ЖК)
+  - name: Parkings
+    description: Управление парковочными местами
+  - name: Parser Errors
+    description: Управление ошибками парсера
+  - name: Directories
+    description: Справочники (города, застройщики, метро)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /blocks:
+    get:
+      tags:
+        - Blocks
+      summary: Список блоков
+      description: Получить список блоков с фильтрацией и пагинацией
+      parameters:
+        - name: city_id
+          in: query
+          description: ID города
+          schema:
+            type: integer
+        - name: region_id
+          in: query
+          description: ID района
+          schema:
+            type: integer
+        - name: builder_id
+          in: query
+          description: ID застройщика
+          schema:
+            type: integer
+        - name: is_exclusive
+          in: query
+          description: Только эксклюзивные блоки
+          schema:
+            type: boolean
+        - name: is_active
+          in: query
+          description: Только активные блоки
+          schema:
+            type: boolean
+            default: true
+        - name: min_price
+          in: query
+          description: Минимальная цена (в рублях)
+          schema:
+            type: number
+        - name: max_price
+          in: query
+          description: Максимальная цена (в рублях)
+          schema:
+            type: number
+        - name: search
+          in: query
+          description: Поиск по названию или адресу
+          schema:
+            type: string
+        - name: subway_id
+          in: query
+          description: ID станции метро
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          description: Поле для сортировки
+          schema:
+            type: string
+            enum: [price, name, deadline, created]
+            default: created
+        - name: sort_direction
+          in: query
+          description: Направление сортировки
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: per_page
+          in: query
+          description: Количество записей на странице (1-100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+        - name: page
+          in: query
+          description: Номер страницы
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    post:
+      tags:
+        - Blocks
+      summary: Создать блок
+      description: Создать новый блок (ЖК)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockCreateRequest'
+            example:
+              city_id: 1
+              builder_id: 5
+              guid: "test-block"
+              name: "Тестовый ЖК"
+              address: "Москва, ул. Тестовая, 1"
+              latitude: 55.7558
+              longitude: 37.6173
+              min_price: 5000000
+              max_price: 15000000
+              is_active: true
+              data_source: "manual"
+      responses:
+        '201':
+          description: Блок успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /blocks/{id}:
+    get:
+      tags:
+        - Blocks
+      summary: Получить блок
+      description: Получить детальную информацию о блоке
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID блока
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    put:
+      tags:
+        - Blocks
+      summary: Обновить блок
+      description: Обновить информацию о блоке
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockUpdateRequest'
+      responses:
+        '200':
+          description: Блок успешно обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    delete:
+      tags:
+        - Blocks
+      summary: Удалить блок
+      description: Мягкое удаление блока (soft delete)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Блок успешно удален
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Блок успешно удален"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /parkings:
+    get:
+      tags:
+        - Parkings
+      summary: Список парковочных мест
+      description: Получить список парковочных мест с фильтрацией
+      parameters:
+        - name: city_id
+          in: query
+          schema:
+            type: integer
+        - name: block_id
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [available, booked]
+        - name: min_price
+          in: query
+          schema:
+            type: number
+        - name: max_price
+          in: query
+          schema:
+            type: number
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParkingListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    post:
+      tags:
+        - Parkings
+      summary: Создать парковочное место
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParkingCreateRequest'
+      responses:
+        '201':
+          description: Парковочное место успешно создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParkingResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /parkings/{id}:
+    get:
+      tags:
+        - Parkings
+      summary: Получить парковочное место
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParkingResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /parser-errors:
+    get:
+      tags:
+        - Parser Errors
+      summary: Список ошибок парсера
+      description: Получить список ошибок парсера с фильтрацией
+      parameters:
+        - name: error_type
+          in: query
+          schema:
+            type: string
+            enum: [api, parsing, validation, database]
+        - name: object_type
+          in: query
+          schema:
+            type: string
+        - name: is_resolved
+          in: query
+          schema:
+            type: boolean
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParserErrorListResponse'
+
+  /parser-errors/statistics:
+    get:
+      tags:
+        - Parser Errors
+      summary: Статистика ошибок
+      responses:
+        '200':
+          description: Статистика ошибок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  unresolved:
+                    type: integer
+                  by_type:
+                    type: object
+                  by_object_type:
+                    type: object
+                  recent:
+                    type: integer
+
+  /parser-errors/{id}/resolve:
+    post:
+      tags:
+        - Parser Errors
+      summary: Пометить ошибку как решенную
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Ошибка помечена как решенная
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Block:
+      type: object
+      properties:
+        id:
+          type: integer
+        guid:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        external_id:
+          type: string
+          nullable: true
+        city:
+          $ref: '#/components/schemas/City'
+        builder:
+          $ref: '#/components/schemas/Builder'
+        coordinates:
+          type: object
+          properties:
+            latitude:
+              type: number
+              format: double
+            longitude:
+              type: number
+              format: double
+        prices:
+          type: object
+          properties:
+            min:
+              type: integer
+              description: В копейках
+            max:
+              type: integer
+              description: В копейках
+            min_formatted:
+              type: string
+            max_formatted:
+              type: string
+        stats:
+          type: object
+          properties:
+            apartments_count:
+              type: integer
+            view_apartments_count:
+              type: integer
+        is_exclusive:
+          type: boolean
+        is_active:
+          type: boolean
+        deadline:
+          type: string
+          nullable: true
+        data_source:
+          type: string
+          enum: [parser, manual, feed, import]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BlockListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Block'
+        links:
+          type: object
+        meta:
+          type: object
+
+    BlockResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Block'
+
+    BlockCreateRequest:
+      type: object
+      required:
+        - city_id
+        - guid
+        - name
+      properties:
+        city_id:
+          type: integer
+        region_id:
+          type: integer
+          nullable: true
+        builder_id:
+          type: integer
+          nullable: true
+        guid:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        min_price:
+          type: integer
+          description: В копейках
+          nullable: true
+        max_price:
+          type: integer
+          description: В копейках
+          nullable: true
+        is_exclusive:
+          type: boolean
+          default: false
+        is_active:
+          type: boolean
+          default: true
+        data_source:
+          type: string
+          enum: [parser, manual, feed, import]
+          default: manual
+        subway_ids:
+          type: array
+          items:
+            type: integer
+
+    BlockUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        # ... остальные поля аналогично BlockCreateRequest
+
+    Parking:
+      type: object
+      properties:
+        id:
+          type: integer
+        block_id:
+          type: integer
+          nullable: true
+        block_name:
+          type: string
+          nullable: true
+        number:
+          type: string
+          nullable: true
+        price:
+          type: integer
+          description: В копейках
+        status:
+          type: string
+          enum: [available, booked]
+        data_source:
+          type: string
+
+    ParkingListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Parking'
+
+    ParkingResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Parking'
+
+    ParkingCreateRequest:
+      type: object
+      required:
+        - city_id
+      properties:
+        city_id:
+          type: integer
+        block_id:
+          type: integer
+          nullable: true
+        price:
+          type: integer
+        status:
+          type: string
+          default: available
+
+    City:
+      type: object
+      properties:
+        id:
+          type: integer
+        guid:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+
+    Builder:
+      type: object
+      properties:
+        id:
+          type: integer
+        guid:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+
+    ParserError:
+      type: object
+      properties:
+        id:
+          type: integer
+        error_type:
+          type: string
+        object_type:
+          type: string
+        error_message:
+          type: string
+        is_resolved:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    ParserErrorListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParserError'
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+          description: Детали ошибки (только в debug режиме)
+
+  responses:
+    Unauthorized:
+      description: Не авторизован
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Unauthenticated."
+
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "No query results for model [App\\Models\\Trend\\Block] 1"
+
+    ValidationError:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+
+    ServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
