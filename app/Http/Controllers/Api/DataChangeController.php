@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\DataChangeResource;
 use App\Models\DataChange;
 use App\Models\Trend\Block;
 use Illuminate\Http\Request;
@@ -54,7 +55,7 @@ class DataChangeController extends Controller
             
             $changes = $query->paginate($perPage);
             
-            return response()->json($changes);
+            return DataChangeResource::collection($changes);
             
         } catch (\Exception $e) {
             Log::error('Error fetching data changes', [
@@ -83,12 +84,12 @@ class DataChangeController extends Controller
             
             $changes = DataChange::where('changeable_type', $modelClass)
                 ->where('changeable_id', $id)
-                ->with(['user'])
+                ->with(['user', 'changeable'])
                 ->orderByDesc('changed_at')
                 ->get();
             
             return response()->json([
-                'data' => $changes,
+                'data' => DataChangeResource::collection($changes),
             ]);
             
         } catch (\Exception $e) {

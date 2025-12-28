@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PriceHistoryResource;
 use App\Models\PriceHistory;
 use App\Models\Trend\Block;
 use Illuminate\Http\Request;
@@ -59,7 +60,7 @@ class PriceHistoryController extends Controller
             
             $history = $query->paginate($perPage);
             
-            return response()->json($history);
+            return PriceHistoryResource::collection($history);
             
         } catch (\Exception $e) {
             Log::error('Error fetching price history', [
@@ -88,12 +89,12 @@ class PriceHistoryController extends Controller
             
             $history = PriceHistory::where('priceable_type', $modelClass)
                 ->where('priceable_id', $id)
-                ->with(['user'])
+                ->with(['user', 'priceable'])
                 ->orderByDesc('changed_at')
                 ->get();
             
             return response()->json([
-                'data' => $history,
+                'data' => PriceHistoryResource::collection($history),
             ]);
             
         } catch (\Exception $e) {
