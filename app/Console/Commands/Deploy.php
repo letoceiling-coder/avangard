@@ -614,24 +614,71 @@ class Deploy extends Command
             $curlOptions[CURLOPT_FOLLOWLOCATION] = true;
             $curlOptions[CURLOPT_MAXREDIRS] = 5;
 
-            $response = $httpClient->withOptions($curlOptions)
-                ->withHeaders([
-                    'X-Deploy-Token' => $deployToken,
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                    'User-Agent' => 'WOW-Spin-Deploy/1.0',
-                ])
-                ->post($deployUrl, [
-                    'commit_hash' => $commitHash,
-                    'repository' => $this->gitRepository,
-                    'branch' => trim(Process::run('git rev-parse --abbrev-ref HEAD')->output() ?: 'main'),
-                    'deployed_by' => get_current_user(),
-                    'timestamp' => now()->toDateTimeString(),
-                    'run_seeders' => $this->option('with-seed'),
-                ]);
+            // Выполняем деплой с повторными попытками, если коммиты не совпадают
+            $maxRetries = 3; // Максимум 3 попытки
+            $retryDelay = 5; // Задержка между попытками в секундах (увеличено для надежности)
+            $deploymentSuccessful = false;
+            $attempt = 0;
+            $lastResponse = null;
+            $lastData = null;
+            
+            while ($attempt < $maxRetries && !$deploymentSuccessful) {
+                $attempt++;
+                
+                if ($attempt > 1) {
+                    $this->newLine();
+                    $this->warn("  🔄 Повторная попытка деплоя ({$attempt}/{$maxRetries})...");
+                    $this->line("  ⏳ Ожидание {$retryDelay} секунд перед повторной попыткой...");
+                    sleep($retryDelay);
+                }
+                
+                $lastResponse = $httpClient->withOptions($curlOptions)
+                    ->withHeaders([
+                        'X-Deploy-Token' => $deployToken,
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                        'User-Agent' => 'WOW-Spin-Deploy/1.0',
+                    ])
+                    ->post($deployUrl, [
+                        'commit_hash' => $commitHash,
+                        'repository' => $this->gitRepository,
+                        'branch' => trim(Process::run('git rev-parse --abbrev-ref HEAD')->output() ?: 'main'),
+                        'deployed_by' => get_current_user(),
+                        'timestamp' => now()->toDateTimeString(),
+                        'run_seeders' => $this->option('with-seed'),
+                    ]);
+
+                // Проверяем статус ответа
+                if ($lastResponse->successful()) {
+                    $lastData = $lastResponse->json();
+                    $dataArray = $lastData['data'] ?? [];
+                    
+                    // Проверяем совпадение коммитов
+                    $serverCommit = $dataArray['new_commit_hash'] ?? $dataArray['old_commit_hash'] ?? null;
+                    
+                    if ($serverCommit === $commitHash) {
+                        $deploymentSuccessful = true;
+                    } else {
+                        // Коммиты не совпадают, но HTTP ответ успешный
+                        // Повторим попытку, если еще есть попытки
+                        if ($attempt < $maxRetries) {
+                            $deploymentSuccessful = false;
+                            continue;
+                        }
+                    }
+                } else {
+                    // HTTP ошибка, пробуем еще раз (если остались попытки)
+                    if ($attempt < $maxRetries) {
+                        continue;
+                    }
+                }
+            }
+            
+            $response = $lastResponse;
+            $data = $lastData;
 
             // Проверяем статус ответа
-            if ($response->successful()) {
+            if ($response && $response->successful() && $deploymentSuccessful) {
                 $data = $response->json();
                 
                 $this->newLine();
@@ -649,24 +696,48 @@ class Deploy extends Command
                     }
                     
                     // Проверяем, что сервер обновился до правильного коммита
-                    if (isset($dataArray['new_commit_hash'])) {
-                        $serverCommit = $dataArray['new_commit_hash'];
-                        $expectedCommit = $commitHash;
+                    $expectedCommit = $commitHash;
+                    $serverCommit = $dataArray['new_commit_hash'] ?? $dataArray['old_commit_hash'] ?? null;
+                    
+                    $this->newLine();
+                    $this->line('  📊 Сравнение коммитов:');
+                    $this->line("     Отправлен: " . substr($expectedCommit, 0, 7) . " ({$expectedCommit})");
+                    
+                    if ($serverCommit) {
+                        $this->line("     На сервере: " . substr($serverCommit, 0, 7) . " ({$serverCommit})");
                         
                         if ($serverCommit === $expectedCommit) {
-                            $this->line("     ✅ Коммит совпадает: " . substr($serverCommit, 0, 7));
+                            $this->line("     ✅ Коммиты совпадают - обновление выполнено успешно!");
+                            $deploymentSuccessful = true;
                         } else {
                             $this->newLine();
-                            $this->warn('  ⚠️  ВНИМАНИЕ: Коммит на сервере не совпадает с ожидаемым!');
+                            $this->error('  ❌ ОШИБКА: Коммит на сервере не совпадает с ожидаемым!');
                             $this->warn("     Ожидался: " . substr($expectedCommit, 0, 7));
                             $this->warn("     На сервере: " . substr($serverCommit, 0, 7));
-                            $this->warn('     Сервер может быть на старой версии. Проверьте логи на сервере.');
-                            $this->newLine();
+                            $this->warn('     Сервер обновился до неправильного коммита.');
+                            $deploymentSuccessful = false;
+                            
+                            // Если еще есть попытки, повторяем
+                            if ($attempt < $maxRetries) {
+                                $this->newLine();
+                                $this->warn("  🔄 Будет выполнена повторная попытка ({$attempt}/{$maxRetries})...");
+                                $deploymentSuccessful = false;
+                            }
                         }
-                    } elseif (isset($dataArray['old_commit_hash'])) {
-                        // Если нет new_commit_hash, используем old_commit_hash для информации
-                        $this->line("     Commit: " . substr($dataArray['old_commit_hash'], 0, 7));
+                    } else {
+                        $this->warn("     ⚠️  Не удалось определить коммит на сервере");
+                        $this->warn("     Проверьте логи на сервере для диагностики");
+                        $deploymentSuccessful = false;
                     }
+                    
+                    // Показываем информацию о предыдущем коммите (если есть)
+                    if (isset($dataArray['old_commit_hash']) && $dataArray['old_commit_hash'] !== $serverCommit) {
+                        $this->line("     Предыдущий: " . substr($dataArray['old_commit_hash'], 0, 7));
+                        if ($dataArray['commit_changed'] ?? false) {
+                            $this->line("     ✅ Код был обновлен (коммит изменился)");
+                        }
+                    }
+                    $this->newLine();
                     
                     if (isset($dataArray['composer_install'])) {
                         $this->line("     Composer: {$dataArray['composer_install']}");
@@ -707,6 +778,15 @@ class Deploy extends Command
                     }
                 } else {
                     $this->line("     Ответ: " . json_encode($data, JSON_UNESCAPED_UNICODE));
+                }
+                
+                // Если коммиты не совпадают после всех попыток - выбрасываем исключение
+                if (!$deploymentSuccessful) {
+                    throw new \Exception(
+                        "Не удалось обновить сервер до правильного коммита после {$maxRetries} попыток. " .
+                        "Ожидался коммит: " . substr($commitHash, 0, 7) . 
+                        ($serverCommit ? ", на сервере: " . substr($serverCommit, 0, 7) : "")
+                    );
                 }
             } else {
                 $errorData = $response->json();
