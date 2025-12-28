@@ -648,6 +648,26 @@ class Deploy extends Command
                         $this->line("     Git Pull: {$dataArray['git_pull']}");
                     }
                     
+                    // Проверяем, что сервер обновился до правильного коммита
+                    if (isset($dataArray['new_commit_hash'])) {
+                        $serverCommit = $dataArray['new_commit_hash'];
+                        $expectedCommit = $commitHash;
+                        
+                        if ($serverCommit === $expectedCommit) {
+                            $this->line("     ✅ Коммит совпадает: " . substr($serverCommit, 0, 7));
+                        } else {
+                            $this->newLine();
+                            $this->warn('  ⚠️  ВНИМАНИЕ: Коммит на сервере не совпадает с ожидаемым!');
+                            $this->warn("     Ожидался: " . substr($expectedCommit, 0, 7));
+                            $this->warn("     На сервере: " . substr($serverCommit, 0, 7));
+                            $this->warn('     Сервер может быть на старой версии. Проверьте логи на сервере.');
+                            $this->newLine();
+                        }
+                    } elseif (isset($dataArray['old_commit_hash'])) {
+                        // Если нет new_commit_hash, используем old_commit_hash для информации
+                        $this->line("     Commit: " . substr($dataArray['old_commit_hash'], 0, 7));
+                    }
+                    
                     if (isset($dataArray['composer_install'])) {
                         $this->line("     Composer: {$dataArray['composer_install']}");
                     }

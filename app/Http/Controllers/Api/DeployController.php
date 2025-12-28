@@ -352,12 +352,67 @@ class DeployController extends Controller
                 Log::info("📍 Удаленный коммит origin/{$branch}: " . substr($remoteCommit, 0, 7));
             }
 
+            // Получаем ожидаемый коммит из запроса (если передан)
+            $expectedCommitHash = request()->input('commit_hash');
+            $maxFetchAttempts = $expectedCommitHash ? 5 : 1; // Повторяем fetch до 5 раз, если ожидаем конкретный коммит
+            $fetchDelay = 2; // Задержка между попытками в секундах
+            
+            // Если ожидается конкретный коммит, делаем несколько попыток fetch
+            if ($expectedCommitHash && strlen($expectedCommitHash) === 40) {
+                Log::info("🎯 Ожидается коммит: " . substr($expectedCommitHash, 0, 7));
+                
+                $commitFound = false;
+                for ($attempt = 1; $attempt <= $maxFetchAttempts; $attempt++) {
+                    // Проверяем, существует ли коммит
+                    $checkCommitProcess = Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' cat-file -e ' . escapeshellarg($expectedCommitHash) . ' 2>&1');
+                    
+                    if ($checkCommitProcess->successful()) {
+                        Log::info("✅ Коммит найден после попытки {$attempt}");
+                        $commitFound = true;
+                        break;
+                    }
+                    
+                    if ($attempt < $maxFetchAttempts) {
+                        Log::info("⏳ Коммит не найден, повторяем fetch (попытка {$attempt}/{$maxFetchAttempts})...");
+                        // Повторяем fetch
+                        Process::path($this->basePath)
+                            ->env($gitEnv)
+                            ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1');
+                        
+                        // Ждем перед следующей попыткой
+                        sleep($fetchDelay);
+                    }
+                }
+                
+                if (!$commitFound) {
+                    Log::warning("⚠️ Ожидаемый коммит не найден после {$maxFetchAttempts} попыток. Продолжаем с последним доступным коммитом.");
+                }
+            }
+
             // 2. Сбрасываем локальную ветку на origin/{branch} (принудительное обновление)
-            // Сначала пробуем reset --hard
-            Log::info("🔄 Выполняем git reset --hard origin/{$branch}...");
-            $process = Process::path($this->basePath)
-                ->env($gitEnv)
-                ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
+            // Если ожидается конкретный коммит, используем его напрямую
+            if ($expectedCommitHash && strlen($expectedCommitHash) === 40) {
+                Log::info("🔄 Выполняем git reset --hard {$expectedCommitHash}...");
+                $process = Process::path($this->basePath)
+                    ->env($gitEnv)
+                    ->run($gitBaseCmd . ' reset --hard ' . escapeshellarg($expectedCommitHash) . ' 2>&1');
+                
+                if (!$process->successful()) {
+                    Log::warning("⚠️ Не удалось переключиться на коммит {$expectedCommitHash}, используем origin/{$branch}");
+                    // Fallback на origin/branch
+                    $process = Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
+                }
+            } else {
+                // Обычный reset на origin/branch
+                Log::info("🔄 Выполняем git reset --hard origin/{$branch}...");
+                $process = Process::path($this->basePath)
+                    ->env($gitEnv)
+                    ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
+            }
 
             if (!$process->successful()) {
                 Log::warning('Git reset --hard не удался, пробуем альтернативные методы', [
@@ -397,6 +452,16 @@ class DeployController extends Controller
                     'error' => $process->errorOutput(),
                     'output' => $process->output(),
                 ]);
+            }
+            
+            // Финальная проверка: если ожидался конкретный коммит, проверяем что он установлен
+            if ($expectedCommitHash && strlen($expectedCommitHash) === 40) {
+                $finalCommit = $this->getCurrentCommitHash();
+                if ($finalCommit === $expectedCommitHash) {
+                    Log::info("✅ Успешно обновлено до ожидаемого коммита: " . substr($expectedCommitHash, 0, 7));
+                } else {
+                    Log::warning("⚠️ Обновлено до коммита " . ($finalCommit ? substr($finalCommit, 0, 7) : 'unknown') . ", ожидался " . substr($expectedCommitHash, 0, 7));
+                }
             }
 
             // 3. Получаем новый commit после обновления
