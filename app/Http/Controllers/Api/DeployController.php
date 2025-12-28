@@ -284,22 +284,75 @@ class DeployController extends Controller
             Log::info("📦 Commit до обновления: " . ($beforeCommit ?: 'не определен'));
             Log::info("🌿 Обновляем ветку: {$branch}");
 
+            // Проверяем текущую ветку и переключаемся на нужную, если необходимо
+            $currentBranchProcess = Process::path($this->basePath)
+                ->env($gitEnv)
+                ->run($gitBaseCmd . ' rev-parse --abbrev-ref HEAD 2>&1');
+            $currentBranch = trim($currentBranchProcess->output()) ?: 'main';
+            
+            if ($currentBranch !== $branch) {
+                Log::info("🔄 Переключаемся с ветки {$currentBranch} на {$branch}...");
+                $checkoutProcess = Process::path($this->basePath)
+                    ->env($gitEnv)
+                    ->run($gitBaseCmd . ' checkout -B ' . escapeshellarg($branch) . ' 2>&1');
+                
+                if (!$checkoutProcess->successful()) {
+                    Log::warning('⚠️ Не удалось переключиться на ветку', [
+                        'output' => $checkoutProcess->output(),
+                        'error' => $checkoutProcess->errorOutput(),
+                    ]);
+                } else {
+                    Log::info("✅ Переключились на ветку {$branch}");
+                }
+            }
+
             // 1. Получаем последние изменения из репозитория
+            // Сначала делаем полный fetch всех веток, чтобы гарантировать получение всех изменений
+            Log::info("📥 Выполняем git fetch origin...");
+            $fetchAllProcess = Process::path($this->basePath)
+                ->env($gitEnv)
+                ->run($gitBaseCmd . ' fetch origin --prune 2>&1');
+
+            if (!$fetchAllProcess->successful()) {
+                Log::warning('⚠️ Не удалось выполнить git fetch origin', [
+                    'output' => $fetchAllProcess->output(),
+                    'error' => $fetchAllProcess->errorOutput(),
+                ]);
+            } else {
+                Log::info('✅ Git fetch origin выполнен успешно');
+            }
+
+            // Дополнительно обновляем конкретную ветку
             Log::info("📥 Выполняем git fetch origin {$branch}...");
             $fetchProcess = Process::path($this->basePath)
                 ->env($gitEnv)
                 ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1');
 
             if (!$fetchProcess->successful()) {
-                Log::warning('⚠️ Не удалось выполнить git fetch', [
+                Log::warning('⚠️ Не удалось выполнить git fetch для ветки', [
                     'output' => $fetchProcess->output(),
                     'error' => $fetchProcess->errorOutput(),
                 ]);
             } else {
-                Log::info('✅ Git fetch выполнен успешно');
+                Log::info('✅ Git fetch для ветки выполнен успешно');
             }
 
-            // 2. Сбрасываем локальную ветку на origin/main (принудительное обновление)
+            // Проверяем, что origin/{branch} существует
+            $checkRemoteBranchProcess = Process::path($this->basePath)
+                ->env($gitEnv)
+                ->run($gitBaseCmd . ' rev-parse --verify origin/' . escapeshellarg($branch) . ' 2>&1');
+            
+            if (!$checkRemoteBranchProcess->successful()) {
+                Log::warning("⚠️ Ветка origin/{$branch} не найдена в remote", [
+                    'output' => $checkRemoteBranchProcess->output(),
+                    'error' => $checkRemoteBranchProcess->errorOutput(),
+                ]);
+            } else {
+                $remoteCommit = trim($checkRemoteBranchProcess->output());
+                Log::info("📍 Удаленный коммит origin/{$branch}: " . substr($remoteCommit, 0, 7));
+            }
+
+            // 2. Сбрасываем локальную ветку на origin/{branch} (принудительное обновление)
             Log::info("🔄 Выполняем git reset --hard origin/{$branch}...");
             $process = Process::path($this->basePath)
                 ->env($gitEnv)
