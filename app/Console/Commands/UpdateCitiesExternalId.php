@@ -186,81 +186,74 @@ class UpdateCitiesExternalId extends Command
     /**
      * Получить external_id (MongoDB ObjectId) для города из API
      * 
-     * Пытается получить ObjectId из ответов API других типов объектов,
-     * которые работают с guid городов (parkings, villages, commercial-blocks)
+     * Стратегия:
+     * 1. Если для города уже есть external_id - используем его для запроса к blocks API
+     * 2. Если external_id нет - пытаемся использовать ответ blocks API для Москвы
+     *    (в ответе могут быть блоки из других городов с их ObjectId)
      */
     protected function getCityExternalId(City $city): ?string
     {
-        // Пробуем разные endpoints, которые работают с guid города
-        $endpoints = [
-            // Parkings API - работает с guid
-            [
-                'url' => 'https://parkings.trendagent.ru/search/places/',
-                'params' => [
-                    'city' => $city->guid,
-                    'lang' => 'ru',
-                    'count' => 10, // Берем больше, чтобы найти объекты с информацией о городе
-                ],
-            ],
-            // Villages API - работает с guid
-            [
-                'url' => 'https://house-api.trendagent.ru/v1/search/villages',
-                'params' => [
-                    'city' => $city->guid,
-                    'lang' => 'ru',
-                    'count' => 10,
-                ],
-            ],
-            // Commercial blocks API - работает с guid
-            [
-                'url' => 'https://commerce.trendagent.ru/search/blocks/',
-                'params' => [
-                    'city' => $city->guid,
-                    'lang' => 'ru',
-                    'count' => 10,
-                    'show_type' => 'list',
-                ],
-            ],
-        ];
+        // Если у нас уже есть external_id для этого города, возвращаем его
+        // (хотя это не должно происходить, так как мы пропускаем такие города)
+        if (!empty($city->external_id)) {
+            return $city->external_id;
+        }
 
-        foreach ($endpoints as $endpointConfig) {
+        // Стратегия 1: Используем blocks API с известным ObjectId (например, Москвы)
+        // для получения данных, в которых могут быть другие города
+        $knownCityWithExternalId = City::whereNotNull('external_id')
+            ->where('is_active', true)
+            ->first();
+
+        if ($knownCityWithExternalId) {
             try {
-                $response = $this->httpClient->get($endpointConfig['url'], [
+                $endpoint = 'https://api.trendagent.ru/v4_29/blocks/search/';
+                
+                // Делаем запрос с известным ObjectId (например, Москвы)
+                $response = $this->httpClient->get($endpoint, [
                     'headers' => [
                         'Authorization' => 'Bearer ' . $this->authToken,
                         'Accept' => 'application/json',
                     ],
-                    'query' => $endpointConfig['params'],
+                    'query' => [
+                        'city' => $knownCityWithExternalId->external_id,
+                        'lang' => 'ru',
+                        'count' => 100, // Берем больше данных, чтобы найти другие города
+                        'show_type' => 'list',
+                        'sort' => 'id',
+                        'sort_order' => 'desc',
+                    ],
                 ]);
 
                 if ($response->getStatusCode() === 200) {
                     $data = json_decode($response->getBody()->getContents(), true);
                     
-                    // Ищем информацию о городе в ответе
+                    // Ищем информацию о нужном городе в ответе
                     $cityId = $this->extractCityIdFromResponse($data, $city->guid);
                     
                     if ($cityId) {
-                        Log::info('UpdateCitiesExternalId: Found city ObjectId', [
+                        Log::info('UpdateCitiesExternalId: Found city ObjectId from blocks API', [
                             'city_guid' => $city->guid,
                             'city_name' => $city->name,
                             'external_id' => $cityId,
-                            'source_endpoint' => $endpointConfig['url'],
+                            'source_endpoint' => $endpoint,
+                            'used_city_guid' => $knownCityWithExternalId->guid,
                         ]);
                         return $cityId;
                     }
                 }
             } catch (\Exception $e) {
-                // Продолжаем пробовать другие endpoints
-                Log::debug('UpdateCitiesExternalId: Endpoint failed', [
+                Log::debug('UpdateCitiesExternalId: Blocks API approach failed', [
                     'city_guid' => $city->guid,
-                    'endpoint' => $endpointConfig['url'],
                     'error' => $e->getMessage(),
                 ]);
-                continue;
             }
         }
 
-        // Если не нашли в API, возвращаем null
+        // Стратегия 2: Пробуем другие endpoints (parkings, villages, commercial-blocks)
+        // Но они тоже требуют ObjectId, поэтому эта стратегия вряд ли сработает
+        // Оставляем на случай, если найдется endpoint, который работает с guid
+        
         return null;
     }
 
