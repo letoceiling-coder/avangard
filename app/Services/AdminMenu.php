@@ -53,6 +53,12 @@ class AdminMenu
                 'roles' => ['admin'],
             ], // Trend SSO Parser menu item
             [
+                'title' => 'Регионы',
+                'route' => 'admin.regions',
+                'icon' => 'map-pin',
+                'roles' => ['admin'],
+            ],
+            [
                 'title' => 'Подписка',
                 'route' => 'admin.subscription',
                 'icon' => 'credit-card',

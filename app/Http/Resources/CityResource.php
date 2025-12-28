@@ -17,6 +17,7 @@ class CityResource extends JsonResource
             'external_id' => $this->external_id,
             'is_active' => $this->is_active,
             'sort_order' => $this->sort_order,
+            'regions' => RegionResource::collection($this->whenLoaded('regions')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

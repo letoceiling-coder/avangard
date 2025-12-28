@@ -12,8 +12,11 @@ use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\TrendSsoController;
 use App\Http\Controllers\Api\BlockController;
+use App\Http\Controllers\Api\DataChangeController;
 use App\Http\Controllers\Api\ParkingController;
 use App\Http\Controllers\Api\ParserErrorController;
+use App\Http\Controllers\Api\PriceHistoryController;
+use App\Http\Controllers\Api\RegionController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -102,8 +105,29 @@ Route::middleware('auth:sanctum')->group(function () {
             
             // Trend Parser API - Blocks, Parkings, Parser Errors
             Route::apiResource('blocks', BlockController::class);
+            Route::get('blocks/outdated', [BlockController::class, 'outdated']);
             Route::apiResource('parkings', ParkingController::class);
             Route::apiResource('parser-errors', ParserErrorController::class)->only(['index', 'show', 'update']);
+            
+            // Regions and Cities
+            Route::get('regions', [RegionController::class, 'index']);
+            Route::put('regions/cities/{city}', [RegionController::class, 'updateCity']);
+            Route::put('regions/regions/{region}', [RegionController::class, 'updateRegion']);
+            Route::post('regions/cities/bulk-update', [RegionController::class, 'bulkUpdateCities']);
+            Route::post('regions/regions/bulk-update', [RegionController::class, 'bulkUpdateRegions']);
+            
+            // Data Changes and Price History
+            Route::prefix('data-changes')->group(function () {
+                Route::get('/', [DataChangeController::class, 'index']);
+                Route::get('/statistics', [DataChangeController::class, 'statistics']);
+                Route::get('/{type}/{id}', [DataChangeController::class, 'show']);
+            });
+            
+            Route::prefix('price-history')->group(function () {
+                Route::get('/', [PriceHistoryController::class, 'index']);
+                Route::get('/statistics', [PriceHistoryController::class, 'statistics']);
+                Route::get('/{type}/{id}', [PriceHistoryController::class, 'show']);
+            });
         });
     });
 });

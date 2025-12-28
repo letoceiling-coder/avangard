@@ -195,5 +195,41 @@ class BlockController extends Controller
             ], 500);
         }
     }
+    
+    /**
+     * Получить список устаревших блоков
+     */
+    public function outdated(Request $request)
+    {
+        try {
+            $days = $request->get('days', 7);
+            $perPage = $request->get('per_page', 15);
+            $perPage = min(max($perPage, 1), 100);
+            
+            $blocks = Block::query()
+                ->outdated($days)
+                ->with(['city', 'region', 'location', 'builder', 'mainImage'])
+                ->paginate($perPage);
+            
+            // Добавляем информацию о количестве дней с последней синхронизации
+            $blocks->getCollection()->transform(function ($block) {
+                $block->days_since_last_sync = $block->getDaysSinceLastSync();
+                return $block;
+            });
+            
+            return BlockResource::collection($blocks);
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching outdated blocks', [
+                'error' => $e->getMessage(),
+                'days' => $request->get('days', 7),
+            ]);
+            
+            return response()->json([
+                'message' => 'Ошибка при получении списка устаревших блоков',
+                'error' => config('app.debug') ? $e->getMessage() : 'Внутренняя ошибка сервера',
+            ], 500);
+        }
+    }
 }
 

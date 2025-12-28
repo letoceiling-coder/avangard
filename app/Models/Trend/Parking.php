@@ -18,6 +18,7 @@ class Parking extends BaseTrendModel
         'parking_type', 'place_type', 'property_type', 'status', 'status_label',
         'price', 'reward_label',
         'deadline', 'deadline_date', 'deadline_over_check',
+        'is_active',
         'data_source', 'parsed_at', 'last_synced_at',
         'metadata',
     ];
@@ -31,6 +32,7 @@ class Parking extends BaseTrendModel
         'price' => 'integer',
         'deadline_over_check' => 'boolean',
         'deadline_date' => 'datetime',
+        'is_active' => 'boolean',
     ];
     
     public function block(): BelongsTo

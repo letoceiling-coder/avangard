@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Exceptions\TrendApiException;
 use App\Exceptions\TrendParserException;
+use App\Models\DataChange;
+use App\Models\PriceHistory;
 use App\Models\ParserError;
 use App\Models\Trend\Block;
 use App\Models\Trend\City;
@@ -35,6 +37,8 @@ class TrendDataSyncService
             'log_errors' => true,
             'update_existing' => true,
             'create_missing_references' => true,
+            'track_changes' => true, // Отслеживать изменения
+            'log_price_changes' => true, // Логировать изменения цен
         ], $options);
         
         try {
@@ -68,7 +72,28 @@ class TrendDataSyncService
             
             // Создание или обновление
             if ($block && $options['update_existing']) {
+                // Сохраняем старые значения для сравнения
+                $oldValues = $block->getAttributes();
+                
+                // Обновляем блок
                 $block->update($blockData);
+                
+                // Обнаруживаем и логируем изменения
+                if ($options['track_changes']) {
+                    $changes = $this->detectChanges($oldValues, $blockData, [
+                        'critical_fields' => ['min_price', 'max_price', 'status', 'is_active', 'deadline_date'],
+                        'important_fields' => ['name', 'address', 'finishing', 'deadline'],
+                    ]);
+                    
+                    if (!empty($changes)) {
+                        $this->logChanges($block, $changes, 'parser');
+                    }
+                    
+                    // Логируем изменения цен отдельно
+                    if ($options['log_price_changes']) {
+                        $this->logPriceChanges($block, $oldValues, $blockData, 'parser');
+                    }
+                }
             } elseif (!$block) {
                 $block = Block::create($blockData);
             }
@@ -364,6 +389,187 @@ class TrendDataSyncService
                 'logging_error' => $e->getMessage(),
             ]);
         }
+    }
+    
+    /**
+     * Обнаружить изменения между старыми и новыми значениями
+     *
+     * @param array $oldValues Старые значения
+     * @param array $newValues Новые значения
+     * @param array $fieldPriorities Приоритеты полей
+     * @return array Массив изменений
+     */
+    protected function detectChanges(array $oldValues, array $newValues, array $fieldPriorities): array
+    {
+        $changes = [];
+        
+        $criticalFields = $fieldPriorities['critical_fields'] ?? [];
+        $importantFields = $fieldPriorities['important_fields'] ?? [];
+        
+        foreach ($newValues as $field => $newValue) {
+            // Пропускаем служебные поля и связи
+            if (in_array($field, ['id', 'created_at', 'updated_at', 'deleted_at', 'city_id', 'builder_id', 'region_id', 'location_id'])) {
+                continue;
+            }
+            
+            $oldValue = $oldValues[$field] ?? null;
+            
+            // Нормализуем значения для сравнения
+            $oldValueNormalized = $this->normalizeValue($oldValue);
+            $newValueNormalized = $this->normalizeValue($newValue);
+            
+            // Проверяем изменение
+            if ($oldValueNormalized !== $newValueNormalized) {
+                $changeType = $this->getChangeType($field, $criticalFields, $importantFields);
+                
+                $changes[] = [
+                    'field' => $field,
+                    'old_value' => $oldValue,
+                    'new_value' => $newValue,
+                    'type' => $changeType,
+                ];
+            }
+        }
+        
+        return $changes;
+    }
+    
+    /**
+     * Нормализовать значение для сравнения
+     */
+    protected function normalizeValue($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
+        }
+        
+        if (is_numeric($value)) {
+            return (string) $value;
+        }
+        
+        return $value;
+    }
+    
+    /**
+     * Определить тип изменения поля
+     */
+    protected function getChangeType(string $field, array $criticalFields, array $importantFields): string
+    {
+        if (in_array($field, $criticalFields)) {
+            if (str_contains($field, 'price')) {
+                return 'price';
+            }
+            if (str_contains($field, 'status') || $field === 'is_active') {
+                return 'status';
+            }
+            return 'important';
+        }
+        
+        if (in_array($field, $importantFields)) {
+            return 'important';
+        }
+        
+        return 'other';
+    }
+    
+    /**
+     * Логировать изменения в таблицу data_changes
+     */
+    protected function logChanges($model, array $changes, string $source): void
+    {
+        try {
+            foreach ($changes as $change) {
+                DataChange::create([
+                    'changeable_type' => get_class($model),
+                    'changeable_id' => $model->id,
+                    'field_name' => $change['field'],
+                    'old_value' => $this->serializeValue($change['old_value']),
+                    'new_value' => $this->serializeValue($change['new_value']),
+                    'change_type' => $change['type'],
+                    'source' => $source,
+                    'changed_at' => now(),
+                    'user_id' => auth()->id(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to log data changes', [
+                'model' => get_class($model),
+                'model_id' => $model->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+    
+    /**
+     * Логировать изменения цен в таблицу price_history
+     */
+    protected function logPriceChanges($model, array $oldValues, array $newValues, string $source): void
+    {
+        try {
+            // Проверяем изменения минимальной цены
+            if (isset($newValues['min_price']) && isset($oldValues['min_price'])) {
+                $oldPrice = $oldValues['min_price'];
+                $newPrice = $newValues['min_price'];
+                
+                if ($oldPrice != $newPrice) {
+                    PriceHistory::create([
+                        'priceable_type' => get_class($model),
+                        'priceable_id' => $model->id,
+                        'price_type' => 'min',
+                        'old_price' => $oldPrice,
+                        'new_price' => $newPrice,
+                        'source' => $source,
+                        'changed_at' => now(),
+                        'user_id' => auth()->id(),
+                    ]);
+                }
+            }
+            
+            // Проверяем изменения максимальной цены
+            if (isset($newValues['max_price']) && isset($oldValues['max_price'])) {
+                $oldPrice = $oldValues['max_price'];
+                $newPrice = $newValues['max_price'];
+                
+                if ($oldPrice != $newPrice) {
+                    PriceHistory::create([
+                        'priceable_type' => get_class($model),
+                        'priceable_id' => $model->id,
+                        'price_type' => 'max',
+                        'old_price' => $oldPrice,
+                        'new_price' => $newPrice,
+                        'source' => $source,
+                        'changed_at' => now(),
+                        'user_id' => auth()->id(),
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to log price changes', [
+                'model' => get_class($model),
+                'model_id' => $model->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+    
+    /**
+     * Сериализовать значение для хранения
+     */
+    protected function serializeValue($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        
+        return (string) $value;
     }
 }
 

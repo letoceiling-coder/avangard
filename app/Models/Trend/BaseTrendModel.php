@@ -2,8 +2,10 @@
 
 namespace App\Models\Trend;
 
-use App\Models\Image;
+use App\Models\DataChange;
 use App\Models\DataSource;
+use App\Models\Image;
+use App\Models\PriceHistory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -49,6 +51,22 @@ abstract class BaseTrendModel extends Model
     public function dataSources(): MorphMany
     {
         return $this->morphMany(DataSource::class, 'sourceable')->latest();
+    }
+    
+    /**
+     * Связь с изменениями данных (полиморфная)
+     */
+    public function dataChanges(): MorphMany
+    {
+        return $this->morphMany(DataChange::class, 'changeable')->latest();
+    }
+    
+    /**
+     * Связь с историей цен (полиморфная)
+     */
+    public function priceHistory(): MorphMany
+    {
+        return $this->morphMany(PriceHistory::class, 'priceable')->latest();
     }
     
     /**
@@ -105,6 +123,52 @@ abstract class BaseTrendModel extends Model
     public function markAsParsed(): void
     {
         $this->update(['parsed_at' => now(), 'data_source' => 'parser']);
+    }
+    
+    /**
+     * Scope: устаревшие данные (не обновлялись более N дней)
+     */
+    public function scopeOutdated($query, int $days = 7)
+    {
+        return $query->where(function ($q) use ($days) {
+            $q->where('last_synced_at', '<', now()->subDays($days))
+              ->orWhereNull('last_synced_at');
+        });
+    }
+    
+    /**
+     * Scope: данные, требующие синхронизации
+     */
+    public function scopeNeedsSync($query, int $days = 1)
+    {
+        return $query->where(function ($q) use ($days) {
+            $q->where('last_synced_at', '<', now()->subDays($days))
+              ->orWhereNull('last_synced_at');
+        })->where('data_source', 'parser');
+    }
+    
+    /**
+     * Проверить, устарели ли данные
+     */
+    public function isOutdated(int $days = 7): bool
+    {
+        if (!$this->last_synced_at) {
+            return true;
+        }
+        
+        return $this->last_synced_at->lt(now()->subDays($days));
+    }
+    
+    /**
+     * Получить количество дней с последней синхронизации
+     */
+    public function getDaysSinceLastSync(): ?int
+    {
+        if (!$this->last_synced_at) {
+            return null;
+        }
+        
+        return now()->diffInDays($this->last_synced_at);
     }
 }
 

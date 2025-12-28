@@ -36,6 +36,7 @@ return new class extends Migration
             $table->string('property_type')->nullable(); // "new", "secondary"
             $table->string('status')->default('available'); // "available", "booked"
             $table->string('status_label')->nullable();
+            $table->boolean('is_active')->default(true); // Активность записи
             
             // Цена и комиссия
             $table->unsignedBigInteger('price')->nullable(); // В копейках
