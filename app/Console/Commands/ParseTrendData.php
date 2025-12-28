@@ -422,8 +422,13 @@ class ParseTrendData extends Command
             $params['show_type'] = 'list';
         }
 
-        // Для всех типов используется guid города
-        $params['city'] = $city->guid;
+        // Для blocks API требует MongoDB ObjectId вместо GUID
+        // Используем external_id если есть, иначе guid
+        if ($objectType === 'blocks' && !empty($city->external_id)) {
+            $params['city'] = $city->external_id;
+        } else {
+            $params['city'] = $city->guid;
+        }
 
         if (in_array('offset', $paramNames)) {
             $params['offset'] = $offset;
