@@ -54,10 +54,16 @@ class DeployController extends Controller
                 $requestedBranch = trim($currentBranchProcess->output()) ?: 'main';
             }
             
+            // Получаем ожидаемый commit hash из запроса
+            $expectedCommitHash = $request->input('commit_hash');
+            
             Log::info("🌿 Используется ветка для деплоя: {$requestedBranch}");
+            if ($expectedCommitHash) {
+                Log::info("🎯 Ожидаемый коммит: " . substr($expectedCommitHash, 0, 7));
+            }
 
             // 1. Git pull
-            $gitPullResult = $this->handleGitPull($requestedBranch);
+            $gitPullResult = $this->handleGitPull($requestedBranch, $expectedCommitHash);
             
             // Получаем текущий commit hash ПОСЛЕ настройки безопасной директории
             $oldCommitHash = $this->getCurrentCommitHash();
@@ -224,8 +230,9 @@ class DeployController extends Controller
      * Выполнить git pull
      * 
      * @param string $branch Ветка для обновления (если не указана, используется 'main')
+     * @param string|null $expectedCommitHash Ожидаемый commit hash для проверки
      */
-    protected function handleGitPull(string $branch = 'main'): array
+    protected function handleGitPull(string $branch = 'main', ?string $expectedCommitHash = null): array
     {
         try {
             // Логируем базовый путь для отладки
@@ -352,8 +359,7 @@ class DeployController extends Controller
                 Log::info("📍 Удаленный коммит origin/{$branch}: " . substr($remoteCommit, 0, 7));
             }
 
-            // Получаем ожидаемый коммит из запроса (если передан)
-            $expectedCommitHash = request()->input('commit_hash');
+            // Используем переданный ожидаемый коммит
             $maxFetchAttempts = $expectedCommitHash ? 5 : 1; // Повторяем fetch до 5 раз, если ожидаем конкретный коммит
             $fetchDelay = 2; // Задержка между попытками в секундах
             
