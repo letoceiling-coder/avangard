@@ -59,3 +59,4 @@ location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico)$ {
 
 Если проблема в роутинге, можно использовать прямой путь `/frontend/assets/` вместо `/assets/`.
 
+

@@ -57,3 +57,4 @@ curl -I https://trendagent.siteaccess.ru/frontend/assets/index-REDgvNva.js 2>&1 
 3. Проверьте, что нет ошибок загрузки модулей
 4. Проверьте Network tab - файлы должны загружаться с правильным Content-Type
 
+

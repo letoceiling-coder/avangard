@@ -110,3 +110,4 @@ git commit -m "fix: настройка кодировки UTF-8"
 - [Git Documentation - i18n](https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration#_i18n)
 - [Git Documentation - .gitattributes](https://git-scm.com/docs/gitattributes)
 
+

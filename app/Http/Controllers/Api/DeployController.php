@@ -56,11 +56,11 @@ class DeployController extends Controller
             
             Log::info("🌿 Используется ветка для деплоя: {$requestedBranch}");
 
-            // Получаем текущий commit hash ДО обновления
-            $oldCommitHash = $this->getCurrentCommitHash();
-
             // 1. Git pull
             $gitPullResult = $this->handleGitPull($requestedBranch);
+            
+            // Получаем текущий commit hash ПОСЛЕ настройки безопасной директории
+            $oldCommitHash = $this->getCurrentCommitHash();
             $result['data']['git_pull'] = $gitPullResult['status'];
             $result['data']['branch'] = $gitPullResult['branch'] ?? 'unknown';
             if (!$gitPullResult['success']) {
@@ -390,71 +390,6 @@ class DeployController extends Controller
     }
 
     /**
-     * Настроить SSH для git команд (решает проблему Host key verification failed)
-     */
-    protected function ensureGitSshConfig(): void
-    {
-        try {
-            // Создаем директорию .ssh в проекте, если её нет
-            $projectSshDir = $this->basePath . '/.ssh';
-            if (!is_dir($projectSshDir)) {
-                mkdir($projectSshDir, 0700, true);
-            }
-
-            // Создаем known_hosts файл в проекте
-            $knownHostsFile = $projectSshDir . '/known_hosts';
-            
-            // Добавляем GitHub в known_hosts, если его там еще нет
-            if (!file_exists($knownHostsFile) || strpos(file_get_contents($knownHostsFile), 'github.com') === false) {
-                // Получаем ключи GitHub
-                $keyscanProcess = Process::run("ssh-keyscan -t rsa,ecdsa,ed25519 github.com 2>/dev/null");
-                if ($keyscanProcess->successful()) {
-                    $githubKeys = $keyscanProcess->output();
-                    file_put_contents($knownHostsFile, $githubKeys, FILE_APPEND);
-                    chmod($knownHostsFile, 0600);
-                    Log::info('GitHub ключи добавлены в known_hosts проекта');
-                }
-            }
-
-            // Настраиваем SSH config для git
-            $sshConfigFile = $projectSshDir . '/config';
-            if (!file_exists($sshConfigFile)) {
-                $sshConfig = "Host github.com\n";
-                $sshConfig .= "  StrictHostKeyChecking no\n";
-                $sshConfig .= "  UserKnownHostsFile " . $knownHostsFile . "\n";
-                
-                // Пробуем найти SSH ключ в домашней директории пользователя
-                $homeDir = dirname(dirname($this->basePath)); // /home/d/dsc23ytp
-                $possibleKeys = [
-                    $homeDir . '/.ssh/id_ed25519',
-                    $homeDir . '/.ssh/id_rsa',
-                ];
-                
-                $identityFile = null;
-                foreach ($possibleKeys as $keyPath) {
-                    if (file_exists($keyPath)) {
-                        $identityFile = $keyPath;
-                        break;
-                    }
-                }
-                
-                if ($identityFile) {
-                    $sshConfig .= "  IdentityFile " . $identityFile . "\n";
-                }
-                // Если ключа нет, не указываем IdentityFile - SSH будет использовать стандартные ключи
-                
-                file_put_contents($sshConfigFile, $sshConfig);
-                chmod($sshConfigFile, 0600);
-                Log::info('SSH config создан для git', ['identity_file' => $identityFile ?? 'default']);
-            }
-        } catch (\Exception $e) {
-            Log::warning('Не удалось настроить SSH для git', [
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
      * Выполнить composer install
      */
     protected function handleComposerInstall(): array
@@ -531,19 +466,7 @@ class DeployController extends Controller
      */
     protected function getComposerPath(): string
     {
-        // 1. Проверить локальный composer.phar в директории проекта (приоритет - веб-сервер имеет доступ)
-        $localComposerPhar = $this->basePath . '/bin/composer.phar';
-        try {
-            $testProcess = Process::run("test -f " . escapeshellarg($localComposerPhar) . " && echo 'exists' 2>&1");
-            if ($testProcess->successful() && trim($testProcess->output()) === 'exists') {
-                Log::info("Composer найден локально в проекте: {$localComposerPhar}");
-                return $localComposerPhar;
-            }
-        } catch (\Exception $e) {
-            // Игнорируем ошибку
-        }
-        
-        // 1.1. Проверить также обычный composer (без .phar)
+        // 1. Проверить локальный composer в директории проекта (приоритет - веб-сервер имеет доступ)
         $localComposer = $this->basePath . '/bin/composer';
         try {
             $testProcess = Process::run("test -f " . escapeshellarg($localComposer) . " && echo 'exists' 2>&1");
@@ -562,52 +485,21 @@ class DeployController extends Controller
                 mkdir($binDir, 0755, true);
             }
             
-            // Скачиваем composer.phar напрямую
+            // Скачиваем composer.phar
             $composerPhar = $binDir . '/composer.phar';
             Log::info("Попытка скачать composer в: {$composerPhar}");
             
-            // Проверяем, не существует ли уже composer.phar
-            $checkExisting = Process::run("test -f " . escapeshellarg($composerPhar) . " && echo 'exists' 2>&1");
-            if ($checkExisting->successful() && trim($checkExisting->output()) === 'exists') {
-                Log::info("Composer уже существует: {$composerPhar}");
-                return $composerPhar;
-            }
-            
-            // Пробуем скачать через curl
-            $downloadProcess = Process::path($binDir)
-                ->run("curl -sS https://getcomposer.org/download/latest-stable/composer.phar -o " . escapeshellarg($composerPhar) . " 2>&1");
+            $downloadProcess = Process::path($this->basePath)
+                ->run("curl -sS https://getcomposer.org/installer | {$this->phpPath} 2>&1");
             
             if ($downloadProcess->successful()) {
-                // Проверяем, был ли создан composer.phar
-                $checkPhar = Process::run("test -f " . escapeshellarg($composerPhar) . " && echo 'exists' 2>&1");
+                // Проверяем, был ли создан composer.phar в текущей директории
+                $checkPhar = Process::run("test -f " . escapeshellarg($this->basePath . '/composer.phar') . " && echo 'exists' 2>&1");
                 if ($checkPhar->successful() && trim($checkPhar->output()) === 'exists') {
-                    // Делаем файл исполняемым
-                    Process::path($binDir)->run("chmod +x " . escapeshellarg($composerPhar) . " 2>&1");
+                    // Перемещаем в bin/
+                    Process::path($this->basePath)
+                        ->run("mv composer.phar " . escapeshellarg($composerPhar) . " 2>&1");
                     Log::info("Composer успешно скачан: {$composerPhar}");
-                    return $composerPhar;
-                }
-            }
-            
-            // Если curl не сработал, пробуем wget
-            $downloadProcessWget = Process::path($binDir)
-                ->run("wget -q https://getcomposer.org/download/latest-stable/composer.phar -O " . escapeshellarg($composerPhar) . " 2>&1");
-            
-            if ($downloadProcessWget->successful()) {
-                $checkPhar = Process::run("test -f " . escapeshellarg($composerPhar) . " && echo 'exists' 2>&1");
-                if ($checkPhar->successful() && trim($checkPhar->output()) === 'exists') {
-                    Process::path($binDir)->run("chmod +x " . escapeshellarg($composerPhar) . " 2>&1");
-                    Log::info("Composer успешно скачан через wget: {$composerPhar}");
-                    return $composerPhar;
-                }
-            }
-            
-            // Если и wget не сработал, пробуем через PHP file_get_contents
-            $composerUrl = 'https://getcomposer.org/download/latest-stable/composer.phar';
-            $composerContent = @file_get_contents($composerUrl);
-            if ($composerContent !== false && strlen($composerContent) > 1000) {
-                if (file_put_contents($composerPhar, $composerContent) !== false) {
-                    chmod($composerPhar, 0755);
-                    Log::info("Composer успешно скачан через PHP: {$composerPhar}");
                     return $composerPhar;
                 }
             }
@@ -1106,4 +998,3 @@ class DeployController extends Controller
         return null;
     }
 }
-

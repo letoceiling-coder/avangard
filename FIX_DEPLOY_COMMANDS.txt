@@ -46,3 +46,4 @@ php artisan view:cache
 chmod -R 775 storage bootstrap/cache
 chmod -R 755 public
 
+

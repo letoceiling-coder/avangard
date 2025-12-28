@@ -34,7 +34,7 @@ class Deploy extends Command
      *
      * @var string
      */
-    protected $gitRepository = 'https://github.com/letoceiling-coder/aip.git';
+    protected $gitRepository = 'https://github.com/letoceiling-coder/avangard.git';
 
     /**
      * Execute the console command.
@@ -685,43 +685,6 @@ class Deploy extends Command
                     if (isset($dataArray['deployed_at'])) {
                         $this->line("     Дата: {$dataArray['deployed_at']}");
                     }
-                    
-                    // Информация о коммитах и актуальности кода
-                    if (isset($dataArray['old_commit_hash']) || isset($dataArray['new_commit_hash'])) {
-                        $this->newLine();
-                        $this->line("     📦 Коммиты:");
-                        
-                        if (isset($dataArray['old_commit_hash'])) {
-                            $this->line("        До обновления: " . substr($dataArray['old_commit_hash'], 0, 7));
-                        }
-                        
-                        if (isset($dataArray['new_commit_hash'])) {
-                            $newCommitShort = substr($dataArray['new_commit_hash'], 0, 7);
-                            $this->line("        После обновления: " . $newCommitShort);
-                            
-                            // Сравнение с локальным коммитом
-                            if (isset($commitHash) && $commitHash !== 'unknown') {
-                                $localCommitShort = substr($commitHash, 0, 7);
-                                $isUpToDate = strtolower($commitHash) === strtolower($dataArray['new_commit_hash']);
-                                
-                                if ($isUpToDate) {
-                                    $this->info("        ✅ Код на сервере актуален (совпадает с локальным: {$localCommitShort})");
-                                } else {
-                                    $this->warn("        ⚠️  Код на сервере отличается от локального");
-                                    $this->line("           Локальный: {$localCommitShort} | Сервер: {$newCommitShort}");
-                                }
-                            }
-                        }
-                        
-                        // Информация об изменении коммита
-                        if (isset($dataArray['commit_changed'])) {
-                            if ($dataArray['commit_changed']) {
-                                $this->line("        🔄 Код на сервере был обновлен");
-                            } else {
-                                $this->line("        ℹ️  Код на сервере уже был актуальным (изменений не было)");
-                            }
-                        }
-                    }
                 } else {
                     $this->line("     Ответ: " . json_encode($data, JSON_UNESCAPED_UNICODE));
                 }
@@ -784,4 +747,3 @@ class Deploy extends Command
         $this->newLine();
     }
 }
-

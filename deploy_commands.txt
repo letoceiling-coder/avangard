@@ -46,3 +46,4 @@ chown -R $(whoami):$(whoami) storage bootstrap/cache
 # 11. Создать симлинк для storage (если нужно)
 # php artisan storage:link
 
+

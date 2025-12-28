@@ -112,4 +112,3 @@ class VerifyDeployToken
         return $next($request);
     }
 }
-
