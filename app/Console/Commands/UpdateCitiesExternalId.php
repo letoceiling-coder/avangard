@@ -173,7 +173,8 @@ class UpdateCitiesExternalId extends Command
     {
         $cityGuids = $this->option('city');
 
-        $query = City::where('is_active', true);
+        $query = City::where('is_active', true)
+            ->whereNotNull('region_id'); // Только города (с region_id), не регионы
 
         if (!empty($cityGuids)) {
             $query->whereIn('guid', $cityGuids);
@@ -272,10 +273,18 @@ class UpdateCitiesExternalId extends Command
         $items = $data['data']['results'] ?? $data['data'] ?? $data['results'] ?? $data['items'] ?? [];
         
         if (!is_array($items)) {
+            Log::debug('UpdateCitiesExternalId: No items found in response', [
+                'city_guid' => $cityGuid,
+                'data_keys' => array_keys($data),
+            ]);
             return null;
         }
 
         foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
             // Проверяем поле city в разных форматах
             $cityData = $item['city'] ?? $item['City'] ?? null;
             
@@ -286,18 +295,33 @@ class UpdateCitiesExternalId extends Command
                 if ($itemCityGuid === $cityGuid) {
                     // Возвращаем _id города
                     $cityId = $cityData['_id'] ?? $cityData['id'] ?? null;
-                    if ($cityId && strlen($cityId) === 24) { // MongoDB ObjectId всегда 24 символа
-                        return (string) $cityId;
+                    if ($cityId) {
+                        $cityId = (string) $cityId;
+                        // MongoDB ObjectId должен быть 24 символа (hex)
+                        if (strlen($cityId) === 24 && ctype_xdigit($cityId)) {
+                            Log::debug('UpdateCitiesExternalId: Found city ObjectId', [
+                                'city_guid' => $cityGuid,
+                                'city_id' => $cityId,
+                                'item_keys' => array_keys($item),
+                            ]);
+                            return $cityId;
+                        }
                     }
                 }
             }
-            
-            // Также проверяем, может быть city это строка (ObjectId)
-            if (isset($item['city']) && is_string($item['city']) && strlen($item['city']) === 24) {
-                // Это может быть ObjectId города напрямую, но нам нужно проверить, что это правильный город
-                // Для этого нужна дополнительная проверка, но пока просто возвращаем первый найденный
-                // В реальности лучше проверить через другой запрос или использовать другой подход
-            }
+        }
+
+        // Логируем структуру первого элемента для отладки
+        if (!empty($items[0])) {
+            $firstItem = $items[0];
+            Log::debug('UpdateCitiesExternalId: Response structure', [
+                'city_guid' => $cityGuid,
+                'first_item_keys' => array_keys($firstItem),
+                'has_city' => isset($firstItem['city']),
+                'city_structure' => isset($firstItem['city']) && is_array($firstItem['city']) 
+                    ? array_keys($firstItem['city']) 
+                    : gettype($firstItem['city'] ?? null),
+            ]);
         }
 
         return null;
