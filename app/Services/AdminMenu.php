@@ -60,7 +60,7 @@ class AdminMenu
             ],
             [
                 'title' => 'Парсер данных',
-                'route' => 'admin.parser',
+                'route' => 'admin.parser.dashboard',
                 'icon' => 'database',
                 'roles' => ['admin'],
             ],
