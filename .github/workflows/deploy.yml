@@ -1,13 +1,17 @@
 name: Auto Deploy
 
+# ОТКЛЮЧЕНО: Используется ручной деплой через php artisan deploy
+# Раскомментируйте для автоматического деплоя при push в main
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths-ignore:
+#       - '**.md'
+#       - '.gitignore'
+#       - '.editorconfig'
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - '.editorconfig'
+  workflow_dispatch: # Только ручной запуск через GitHub UI
 
 jobs:
   deploy:

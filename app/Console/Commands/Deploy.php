@@ -584,23 +584,18 @@ class Deploy extends Command
         $this->line("  🔐 Token: " . (substr($deployToken, 0, 3) . '...' . substr($deployToken, -3)));
 
         try {
-            $httpClient = Http::timeout(300); // 5 минут таймаут
-
-            // Отключить проверку SSL для локальной разработки (если указана опция)
-            if ($this->option('insecure') || env('APP_ENV') === 'local') {
-                $httpClient = $httpClient->withoutVerifying();
+            // Дополнительные настройки для cURL при проблемах с SSL
+            $curlOptions = [];
+            $insecure = $this->option('insecure') || env('APP_ENV') === 'local';
+            
+            if ($insecure) {
+                $curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
+                $curlOptions[CURLOPT_SSL_VERIFYHOST] = false;
                 if ($this->option('insecure')) {
                     $this->warn('  ⚠️  Проверка SSL сертификата отключена (--insecure)');
                 } else {
                     $this->line('  ℹ️  Проверка SSL отключена (локальное окружение)');
                 }
-            }
-
-            // Дополнительные настройки для cURL при проблемах с SSL
-            $curlOptions = [];
-            if ($this->option('insecure')) {
-                $curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
-                $curlOptions[CURLOPT_SSL_VERIFYHOST] = false;
             }
             
             // Пробуем разные версии TLS
@@ -630,6 +625,12 @@ class Deploy extends Command
                     $this->warn("  🔄 Повторная попытка деплоя ({$attempt}/{$maxRetries})...");
                     $this->line("  ⏳ Ожидание {$retryDelay} секунд перед повторной попыткой...");
                     sleep($retryDelay);
+                }
+                
+                // ВАЖНО: Создаем новый HTTP клиент для каждой попытки, чтобы избежать накопления заголовков
+                $httpClient = Http::timeout(300); // 5 минут таймаут
+                if ($insecure) {
+                    $httpClient = $httpClient->withoutVerifying();
                 }
                 
                 $lastResponse = $httpClient->withOptions($curlOptions)
