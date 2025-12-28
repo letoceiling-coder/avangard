@@ -273,48 +273,63 @@ class UpdateCitiesExternalId extends Command
             return null;
         }
 
+        // Собираем уникальные ObjectId городов из ответа для логирования
+        $foundCityIds = [];
+        
         foreach ($items as $item) {
             if (!is_array($item)) {
                 continue;
             }
 
-            // Проверяем поле city в разных форматах
-            $cityData = $item['city'] ?? $item['City'] ?? null;
+            // Проверяем поле city (структура из реального ответа API)
+            $cityData = $item['city'] ?? null;
             
             if (is_array($cityData)) {
-                // Проверяем, совпадает ли guid
-                $itemCityGuid = $cityData['guid'] ?? $cityData['GUID'] ?? null;
+                $itemCityGuid = $cityData['guid'] ?? null;
+                $itemCityId = $cityData['_id'] ?? null;
                 
-                if ($itemCityGuid === $cityGuid) {
-                    // Возвращаем _id города
-                    $cityId = $cityData['_id'] ?? $cityData['id'] ?? null;
-                    if ($cityId) {
-                        $cityId = (string) $cityId;
-                        // MongoDB ObjectId должен быть 24 символа (hex)
-                        if (strlen($cityId) === 24 && ctype_xdigit($cityId)) {
-                            Log::debug('UpdateCitiesExternalId: Found city ObjectId', [
+                if ($itemCityGuid && $itemCityId) {
+                    $itemCityId = (string) $itemCityId;
+                    
+                    // MongoDB ObjectId должен быть 24 символа (hex)
+                    if (strlen($itemCityId) === 24 && ctype_xdigit($itemCityId)) {
+                        // Сохраняем найденные города для логирования
+                        if (!isset($foundCityIds[$itemCityGuid])) {
+                            $foundCityIds[$itemCityGuid] = $itemCityId;
+                        }
+                        
+                        // Если это нужный нам город, возвращаем его ObjectId
+                        if ($itemCityGuid === $cityGuid) {
+                            Log::info('UpdateCitiesExternalId: Found city ObjectId in blocks API response', [
                                 'city_guid' => $cityGuid,
-                                'city_id' => $cityId,
-                                'item_keys' => array_keys($item),
+                                'city_id' => $itemCityId,
+                                'total_cities_found' => count($foundCityIds),
                             ]);
-                            return $cityId;
+                            return $itemCityId;
                         }
                     }
                 }
             }
         }
 
-        // Логируем структуру первого элемента для отладки
-        if (!empty($items[0])) {
-            $firstItem = $items[0];
-            Log::debug('UpdateCitiesExternalId: Response structure', [
-                'city_guid' => $cityGuid,
-                'first_item_keys' => array_keys($firstItem),
-                'has_city' => isset($firstItem['city']),
-                'city_structure' => isset($firstItem['city']) && is_array($firstItem['city']) 
-                    ? array_keys($firstItem['city']) 
-                    : gettype($firstItem['city'] ?? null),
+        // Логируем найденные города для отладки
+        if (!empty($foundCityIds)) {
+            Log::debug('UpdateCitiesExternalId: Found cities in blocks API response', [
+                'requested_city_guid' => $cityGuid,
+                'found_cities' => $foundCityIds,
+                'total_items_checked' => count($items),
             ]);
+        } else {
+            // Логируем структуру первого элемента для отладки
+            if (!empty($items[0])) {
+                $firstItem = $items[0];
+                Log::debug('UpdateCitiesExternalId: Response structure (no cities found)', [
+                    'city_guid' => $cityGuid,
+                    'first_item_keys' => array_keys($firstItem),
+                    'has_city' => isset($firstItem['city']),
+                    'city_type' => gettype($firstItem['city'] ?? null),
+                ]);
+            }
         }
 
         return null;
