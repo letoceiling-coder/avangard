@@ -676,11 +676,10 @@ class Deploy extends Command
             
             $response = $lastResponse;
             $data = $lastData;
+            $serverCommit = null;
 
             // Проверяем статус ответа
-            if ($response && $response->successful() && $deploymentSuccessful) {
-                $data = $response->json();
-                
+            if ($response && $response->successful()) {
                 $this->newLine();
                 $this->info('  ✅ Сервер ответил успешно:');
                 
@@ -708,26 +707,22 @@ class Deploy extends Command
                         
                         if ($serverCommit === $expectedCommit) {
                             $this->line("     ✅ Коммиты совпадают - обновление выполнено успешно!");
-                            $deploymentSuccessful = true;
                         } else {
                             $this->newLine();
                             $this->error('  ❌ ОШИБКА: Коммит на сервере не совпадает с ожидаемым!');
                             $this->warn("     Ожидался: " . substr($expectedCommit, 0, 7));
                             $this->warn("     На сервере: " . substr($serverCommit, 0, 7));
                             $this->warn('     Сервер обновился до неправильного коммита.');
-                            $deploymentSuccessful = false;
-                            
-                            // Если еще есть попытки, повторяем
-                            if ($attempt < $maxRetries) {
-                                $this->newLine();
-                                $this->warn("  🔄 Будет выполнена повторная попытка ({$attempt}/{$maxRetries})...");
-                                $deploymentSuccessful = false;
-                            }
+                            throw new \Exception(
+                                "Не удалось обновить сервер до правильного коммита после {$maxRetries} попыток. " .
+                                "Ожидался коммит: " . substr($commitHash, 0, 7) . 
+                                ", на сервере: " . substr($serverCommit, 0, 7)
+                            );
                         }
                     } else {
                         $this->warn("     ⚠️  Не удалось определить коммит на сервере");
                         $this->warn("     Проверьте логи на сервере для диагностики");
-                        $deploymentSuccessful = false;
+                        throw new \Exception("Не удалось определить коммит на сервере после деплоя");
                     }
                     
                     // Показываем информацию о предыдущем коммите (если есть)
@@ -778,15 +773,6 @@ class Deploy extends Command
                     }
                 } else {
                     $this->line("     Ответ: " . json_encode($data, JSON_UNESCAPED_UNICODE));
-                }
-                
-                // Если коммиты не совпадают после всех попыток - выбрасываем исключение
-                if (!$deploymentSuccessful) {
-                    throw new \Exception(
-                        "Не удалось обновить сервер до правильного коммита после {$maxRetries} попыток. " .
-                        "Ожидался коммит: " . substr($commitHash, 0, 7) . 
-                        ($serverCommit ? ", на сервере: " . substr($serverCommit, 0, 7) : "")
-                    );
                 }
             } else {
                 $errorData = $response->json();
