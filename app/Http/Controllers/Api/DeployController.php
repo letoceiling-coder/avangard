@@ -363,54 +363,84 @@ class DeployController extends Controller
             $maxFetchAttempts = $expectedCommitHash ? 5 : 1; // Повторяем fetch до 5 раз, если ожидаем конкретный коммит
             $fetchDelay = 2; // Задержка между попытками в секундах
             
-            // Если ожидается конкретный коммит, делаем несколько попыток fetch
+            // Если ожидается конкретный коммит, делаем несколько попыток fetch и проверяем его наличие
+            $commitFound = false;
             if ($expectedCommitHash && strlen($expectedCommitHash) === 40) {
                 Log::info("🎯 Ожидается коммит: " . substr($expectedCommitHash, 0, 7));
                 
-                $commitFound = false;
+                // Сначала пробуем найти коммит в remote напрямую (независимо от origin/main)
+                // Это работает, если коммит уже есть в remote репозитории
                 for ($attempt = 1; $attempt <= $maxFetchAttempts; $attempt++) {
-                    // Проверяем, существует ли коммит
+                    // Проверяем, существует ли коммит локально
                     $checkCommitProcess = Process::path($this->basePath)
                         ->env($gitEnv)
                         ->run($gitBaseCmd . ' cat-file -e ' . escapeshellarg($expectedCommitHash) . ' 2>&1');
                     
                     if ($checkCommitProcess->successful()) {
-                        Log::info("✅ Коммит найден после попытки {$attempt}");
+                        Log::info("✅ Коммит найден локально после попытки {$attempt}");
                         $commitFound = true;
                         break;
                     }
                     
+                    // Если коммит не найден локально, пробуем fetch с конкретного коммита
+                    // Это может работать, если remote знает о коммите, даже если он не в origin/main
+                    Log::info("⏳ Коммит не найден локально, пробуем fetch с коммитом (попытка {$attempt}/{$maxFetchAttempts})...");
+                    
+                    // Пробуем fetch с конкретного коммита напрямую
+                    $fetchCommitProcess = Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($expectedCommitHash) . ' 2>&1');
+                    
+                    // Также пробуем обычный fetch для ветки
+                    Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1');
+                    
+                    // И полный fetch для надежности
+                    Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' fetch origin --prune 2>&1');
+                    
                     if ($attempt < $maxFetchAttempts) {
-                        Log::info("⏳ Коммит не найден, повторяем fetch (попытка {$attempt}/{$maxFetchAttempts})...");
-                        // Повторяем fetch
-                        Process::path($this->basePath)
-                            ->env($gitEnv)
-                            ->run($gitBaseCmd . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1');
-                        
                         // Ждем перед следующей попыткой
                         sleep($fetchDelay);
                     }
                 }
                 
                 if (!$commitFound) {
-                    Log::warning("⚠️ Ожидаемый коммит не найден после {$maxFetchAttempts} попыток. Продолжаем с последним доступным коммитом.");
+                    Log::warning("⚠️ Ожидаемый коммит не найден локально после {$maxFetchAttempts} попыток fetch. Пробуем использовать его напрямую для reset.");
                 }
             }
 
             // 2. Сбрасываем локальную ветку на origin/{branch} (принудительное обновление)
             // Если ожидается конкретный коммит, используем его напрямую
             if ($expectedCommitHash && strlen($expectedCommitHash) === 40) {
+                // Сначала пробуем reset на конкретный коммит
                 Log::info("🔄 Выполняем git reset --hard {$expectedCommitHash}...");
                 $process = Process::path($this->basePath)
                     ->env($gitEnv)
                     ->run($gitBaseCmd . ' reset --hard ' . escapeshellarg($expectedCommitHash) . ' 2>&1');
                 
                 if (!$process->successful()) {
-                    Log::warning("⚠️ Не удалось переключиться на коммит {$expectedCommitHash}, используем origin/{$branch}");
-                    // Fallback на origin/branch
+                    Log::warning("⚠️ Не удалось переключиться на коммит {$expectedCommitHash} напрямую, пробуем fetch и reset снова...");
+                    
+                    // Пробуем еще раз fetch и reset
+                    Process::path($this->basePath)
+                        ->env($gitEnv)
+                        ->run($gitBaseCmd . ' fetch origin --depth=100 ' . escapeshellarg($branch) . ' 2>&1');
+                    
+                    // Пробуем reset еще раз
                     $process = Process::path($this->basePath)
                         ->env($gitEnv)
-                        ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
+                        ->run($gitBaseCmd . ' reset --hard ' . escapeshellarg($expectedCommitHash) . ' 2>&1');
+                    
+                    if (!$process->successful()) {
+                        Log::warning("⚠️ Не удалось переключиться на коммит {$expectedCommitHash} после повторного fetch, используем origin/{$branch}");
+                        // Fallback на origin/branch
+                        $process = Process::path($this->basePath)
+                            ->env($gitEnv)
+                            ->run($gitBaseCmd . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1');
+                    }
                 }
             } else {
                 // Обычный reset на origin/branch
