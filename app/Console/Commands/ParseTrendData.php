@@ -42,7 +42,7 @@ class ParseTrendData extends Command
             'name' => 'Блоки (Квартиры)',
             'endpoint' => 'https://api.trendagent.ru/v4_29/blocks/search/',
             'method' => 'syncBlock',
-            'params' => ['city', 'lang', 'count', 'offset', 'sort', 'sort_order'],
+            'params' => ['city', 'lang', 'count', 'offset', 'sort', 'sort_order', 'show_type'],
         ],
         'parkings' => [
             'name' => 'Паркинги',
@@ -328,7 +328,7 @@ class ParseTrendData extends Command
     ): void {
         $endpoint = $typeConfig['endpoint'];
         $method = $typeConfig['method'];
-        $params = $this->buildParams($typeConfig['params'], $city, $limit, $offset);
+        $params = $this->buildParams($typeConfig['params'], $city, $limit, $offset, $type);
 
         try {
             // Запрос к API
@@ -410,13 +410,20 @@ class ParseTrendData extends Command
     /**
      * Построение параметров запроса
      */
-    protected function buildParams(array $paramNames, City $city, int $limit, int $offset): array
+    protected function buildParams(array $paramNames, City $city, int $limit, int $offset, string $objectType = ''): array
     {
         $params = [
-            'city' => $city->guid,
             'lang' => 'ru',
             'count' => $limit,
         ];
+
+        // Для blocks и commercial-blocks требуется show_type (обязательный параметр)
+        if ($objectType === 'blocks' || $objectType === 'commercial-blocks' || in_array('show_type', $paramNames)) {
+            $params['show_type'] = 'list';
+        }
+
+        // Для всех типов используется guid города
+        $params['city'] = $city->guid;
 
         if (in_array('offset', $paramNames)) {
             $params['offset'] = $offset;
