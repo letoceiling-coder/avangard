@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\CommercialBlockController;
 use App\Http\Controllers\Api\CommercialPremiseController;
 use App\Http\Controllers\Api\DataChangeController;
 use App\Http\Controllers\Api\ParkingController;
+use App\Http\Controllers\Api\ParserController;
 use App\Http\Controllers\Api\ParserErrorController;
 use App\Http\Controllers\Api\ParserScheduleController;
 use App\Http\Controllers\Api\PlotController;
@@ -121,6 +122,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::apiResource('commercial-premises', CommercialPremiseController::class);
             Route::apiResource('parser-schedules', ParserScheduleController::class);
             Route::apiResource('parser-errors', ParserErrorController::class)->only(['index', 'show', 'update']);
+            
+            // Parser control
+            Route::post('parser/run', [ParserController::class, 'run']);
+            Route::get('parser/status', [ParserController::class, 'status']);
             
             // Regions and Cities
             Route::get('regions', [RegionController::class, 'index']);

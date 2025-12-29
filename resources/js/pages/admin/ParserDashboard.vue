@@ -31,6 +31,14 @@
         <div class="bg-card rounded-lg border border-border p-6">
             <h2 class="text-lg font-semibold mb-4">Быстрые действия</h2>
             <div class="flex flex-wrap gap-4">
+                <button
+                    @click="runParser"
+                    :disabled="running"
+                    class="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+                >
+                    <span v-if="running">Запуск парсера...</span>
+                    <span v-else>🚀 Запустить парсер</span>
+                </button>
                 <router-link
                     to="/parser/objects"
                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
@@ -78,13 +86,15 @@
 </template>
 
 <script>
-import { apiGet } from '../../utils/api';
+import { apiGet, apiPost } from '../../utils/api';
+import Swal from 'sweetalert2';
 
 export default {
     name: 'ParserDashboard',
     data() {
         return {
             loading: true,
+            running: false,
             stats: {
                 total: 0,
                 activeSchedules: 0,
@@ -113,6 +123,59 @@ export default {
                 console.error('Error fetching stats:', error);
             } finally {
                 this.loading = false;
+            }
+        },
+        async runParser() {
+            if (this.running) return;
+
+            const result = await Swal.fire({
+                title: 'Запустить парсер?',
+                text: 'Парсер будет запущен для всех активных городов и типов объектов',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Запустить',
+                cancelButtonText: 'Отмена',
+                confirmButtonColor: '#9333ea',
+            });
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            this.running = true;
+
+            try {
+                const response = await apiPost('/parser/run', {});
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || 'Ошибка при запуске парсера');
+                }
+
+                const data = await response.json();
+
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Парсер запущен',
+                    text: data.message || 'Парсер успешно запущен в фоновом режиме',
+                    timer: 3000,
+                    showConfirmButton: false,
+                });
+
+                // Обновляем статистику через несколько секунд
+                setTimeout(() => {
+                    this.fetchStats();
+                }, 5000);
+
+            } catch (error) {
+                console.error('Error running parser:', error);
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Ошибка',
+                    text: error.message || 'Не удалось запустить парсер',
+                });
+            } finally {
+                this.running = false;
             }
         },
     },
