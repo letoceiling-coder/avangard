@@ -650,10 +650,11 @@ class TrendDataSyncService
      * Подготовить JSON поле для сохранения в БД
      * 
      * Для полей с cast 'array' в модели Laravel автоматически сериализует массивы в JSON при сохранении,
-     * поэтому мы должны передавать массив/объект как есть, а не JSON строку.
+     * поэтому мы должны передавать массив, а не JSON строку или объект.
      * 
-     * Если значение уже JSON строка, декодируем ее в массив для полей с cast 'array'.
-     * Если значение - массив/объект, возвращаем как есть.
+     * Если значение - объект, конвертируем в массив.
+     * Если значение - JSON строка, декодируем в массив.
+     * Если значение - массив, возвращаем как есть.
      */
     protected function serializeJsonField($value)
     {
@@ -661,22 +662,27 @@ class TrendDataSyncService
             return null;
         }
         
-        // Если массив или объект, возвращаем как есть (Laravel сериализует автоматически для cast 'array')
-        if (is_array($value) || is_object($value)) {
+        // Если массив, возвращаем как есть (Laravel сериализует автоматически для cast 'array')
+        if (is_array($value)) {
             return $value;
         }
         
-        // Если строка, пытаемся декодировать JSON (на случай если пришла уже сериализованная строка)
+        // Если объект (stdClass), конвертируем в массив
+        if (is_object($value)) {
+            return json_decode(json_encode($value), true);
+        }
+        
+        // Если строка, пытаемся декодировать JSON в массив
         if (is_string($value)) {
             $decoded = json_decode($value, true);
-            if (json_last_error() === JSON_ERROR_NONE && (is_array($decoded) || is_object($decoded))) {
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                 return $decoded;
             }
-            // Если не JSON, возвращаем как есть
-            return $value;
+            // Если не JSON, возвращаем null (нельзя сохранить строку в поле с cast 'array')
+            return null;
         }
         
-        return $value;
+        return null;
     }
 
     /**
