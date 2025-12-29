@@ -219,14 +219,16 @@ class ParseTrendData extends Command
     protected function getCities()
     {
         $cityGuids = $this->option('city');
+        
+        // Получаем только города (не регионы), где region_id не NULL
+        $query = City::where('is_active', true)
+            ->whereNotNull('region_id'); // Только города, не регионы
 
         if (!empty($cityGuids)) {
-            return City::whereIn('guid', $cityGuids)
-                ->where('is_active', true)
-                ->get();
+            $query->whereIn('guid', $cityGuids);
         }
 
-        return City::where('is_active', true)->get();
+        return $query->get();
     }
 
     /**
