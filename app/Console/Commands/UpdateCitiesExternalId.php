@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Helpers\TrendSettings;
 use App\Models\Trend\City;
 use App\Services\TrendSsoApiAuth;
 use GuzzleHttp\Client;
@@ -21,8 +22,8 @@ class UpdateCitiesExternalId extends Command
      * @var string
      */
     protected $signature = 'cities:update-external-id 
-                            {--phone=+79045393434 : Телефон для авторизации}
-                            {--password=nwBvh4q : Пароль для авторизации}
+                            {--phone= : Телефон для авторизации (если не указан, используется из настроек)}
+                            {--password= : Пароль для авторизации (если не указан, используется из настроек)}
                             {--city=* : GUID конкретных городов (если не указано, обновляются все активные)}';
 
     /**
@@ -133,8 +134,9 @@ class UpdateCitiesExternalId extends Command
      */
     protected function authenticate(): bool
     {
-        $phone = $this->option('phone');
-        $password = $this->option('password');
+        // Используем значения из опций или из настроек (или значения по умолчанию)
+        $phone = $this->option('phone') ?: TrendSettings::getPhone();
+        $password = $this->option('password') ?: TrendSettings::getPassword();
 
         $this->info("🔐 Авторизация через Trend SSO...");
 

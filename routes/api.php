@@ -128,6 +128,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('regions/cities/bulk-update', [RegionController::class, 'bulkUpdateCities']);
             Route::post('regions/regions/bulk-update', [RegionController::class, 'bulkUpdateRegions']);
             
+            // Settings
+            Route::get('settings', [SettingsController::class, 'index']);
+            Route::get('settings/trend', [SettingsController::class, 'trend']);
+            Route::put('settings/trend', [SettingsController::class, 'updateTrend']);
+            Route::get('settings/{key}', [SettingsController::class, 'show']);
+            Route::put('settings/{key}', [SettingsController::class, 'update']);
+            
             // Data Changes and Price History
             Route::prefix('data-changes')->group(function () {
                 Route::get('/', [DataChangeController::class, 'index']);

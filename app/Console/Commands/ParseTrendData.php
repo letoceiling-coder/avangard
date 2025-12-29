@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Helpers\TrendSettings;
 use App\Models\Trend\City;
 use App\Services\TrendDataSyncService;
 use App\Services\TrendSsoApiAuth;
@@ -24,8 +25,8 @@ class ParseTrendData extends Command
                             {--limit=1000 : Лимит объектов на тип (по умолчанию 1000)}
                             {--offset=0 : Смещение для пагинации}
                             {--skip-errors : Пропускать ошибки и продолжать}
-                            {--phone=+79045393434 : Телефон для авторизации}
-                            {--password=nwBvh4q : Пароль для авторизации}';
+                            {--phone= : Телефон для авторизации (если не указан, используется из настроек)}
+                            {--password= : Пароль для авторизации (если не указан, используется из настроек)}';
 
     /**
      * The console command description.
@@ -177,8 +178,9 @@ class ParseTrendData extends Command
      */
     protected function authenticate(): bool
     {
-        $phone = $this->option('phone');
-        $password = $this->option('password');
+        // Используем значения из опций или из настроек (или значения по умолчанию)
+        $phone = $this->option('phone') ?: TrendSettings::getPhone();
+        $password = $this->option('password') ?: TrendSettings::getPassword();
 
         $this->info("🔐 Авторизация через Trend SSO...");
 

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Helpers\TrendSettings;
 use App\Models\Trend\City;
 use App\Services\TrendDirectoriesService;
 use App\Services\TrendSsoApiAuth;
@@ -50,15 +51,9 @@ class SyncTrendDirectories extends Command
         $this->info('🔄 Синхронизация справочников TrendAgent...');
         $this->newLine();
 
-        // Авторизация
-        $phone = $this->option('phone') ?: config('trend.phone');
-        $password = $this->option('password') ?: config('trend.password');
-
-        if (empty($phone) || empty($password)) {
-            $this->error('❌ Не указаны телефон и/или пароль для авторизации');
-            $this->info('Используйте опции --phone и --password или настройте config/trend.php');
-            return 1;
-        }
+        // Авторизация - используем значения из опций или из настроек (или значения по умолчанию)
+        $phone = $this->option('phone') ?: TrendSettings::getPhone();
+        $password = $this->option('password') ?: TrendSettings::getPassword();
 
         try {
             $this->info('🔐 Авторизация через Trend SSO...');
