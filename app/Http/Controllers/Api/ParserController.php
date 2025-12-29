@@ -31,16 +31,20 @@ class ParserController extends Controller
             $command = 'trend:parse';
             $parameters = [];
 
+            // Для опций, которые могут быть массивом (--type, --city), 
+            // Artisan::call принимает их как массив значений
             if ($request->has('type') && !empty($request->input('type'))) {
-                foreach ($request->input('type') as $type) {
-                    $parameters['--type'][] = $type;
-                }
+                $types = is_array($request->input('type')) 
+                    ? $request->input('type') 
+                    : [$request->input('type')];
+                $parameters['--type'] = $types;
             }
 
             if ($request->has('city') && !empty($request->input('city'))) {
-                foreach ($request->input('city') as $city) {
-                    $parameters['--city'][] = $city;
-                }
+                $cities = is_array($request->input('city')) 
+                    ? $request->input('city') 
+                    : [$request->input('city')];
+                $parameters['--city'] = $cities;
             }
 
             if ($request->boolean('check_images')) {
@@ -52,14 +56,16 @@ class ParserController extends Controller
             }
 
             if ($request->has('limit')) {
-                $parameters['--limit'] = $request->input('limit');
+                $parameters['--limit'] = (int) $request->input('limit');
             }
 
             if ($request->boolean('skip_errors')) {
                 $parameters['--skip-errors'] = true;
             }
 
-            // Запускаем команду в фоне
+            // Запускаем команду
+            // Внимание: Artisan::call выполняется синхронно, что может занять много времени
+            // Для продакшена рекомендуется использовать очереди (Queue)
             $exitCode = Artisan::call($command, $parameters);
 
             Log::info('ParserController: Manual parser run initiated', [
