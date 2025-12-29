@@ -76,8 +76,8 @@ class BlockResource extends JsonResource
             'payment_types' => $this->payment_types,
             'contract_types' => $this->contract_types,
             
-            'created_at' => $this->created_at->toIso8601String(),
-            'updated_at' => $this->updated_at->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }
 }

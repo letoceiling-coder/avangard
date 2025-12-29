@@ -368,6 +368,30 @@ class ParseTrendData extends Command
                 } elseif (isset($data['data']) && is_array($data['data'])) {
                     $objects = $data['data'];
                 }
+            } elseif ($type === 'villages') {
+                // Для villages API структура: {list: [...]} или {data: {list: [...]}}
+                if (isset($data['list']) && is_array($data['list'])) {
+                    $objects = $data['list'];
+                } elseif (isset($data['data']['list']) && is_array($data['data']['list'])) {
+                    $objects = $data['data']['list'];
+                } elseif (isset($data['data']['results']) && is_array($data['data']['results'])) {
+                    $objects = $data['data']['results'];
+                }
+            } elseif ($type === 'plots') {
+                // Для plots API возвращает фильтры, нужно использовать другой endpoint
+                // Пока пропускаем, так как это endpoint для фильтров, а не для списка
+                Log::warning("ParseTrendData: plots endpoint returns filters, not object list", [
+                    'city_guid' => $city->guid,
+                    'endpoint' => $endpoint,
+                ]);
+                return;
+            } elseif ($type === 'parkings') {
+                // Для parkings API структура: {data: [...]} или {results: [...]}
+                if (isset($data['data']) && is_array($data['data'])) {
+                    $objects = $data['data'];
+                } elseif (isset($data['results']) && is_array($data['results'])) {
+                    $objects = $data['results'];
+                }
             } else {
                 // Для других типов: data.data, data.results, result, или data
                 if (isset($data['data']['results']) && is_array($data['data']['results'])) {
@@ -487,7 +511,12 @@ class ParseTrendData extends Command
         }
 
         if (in_array('sort', $paramNames)) {
-            $params['sort'] = 'id';
+            // Для commercial-blocks API требует другие значения sort
+            if ($objectType === 'commercial-blocks') {
+                $params['sort'] = 'price'; // price, price_m2, d
+            } else {
+                $params['sort'] = 'id';
+            }
             $params['sort_order'] = 'desc';
         }
 

@@ -197,6 +197,11 @@ class TrendDataSyncService
      */
     protected function findOrCreateCity(?array $cityData, array $options): ?City
     {
+        // Если город передан напрямую в опциях (из парсера), используем его
+        if (isset($options['city']) && $options['city'] instanceof City) {
+            return $options['city'];
+        }
+        
         if (!$cityData) {
             return null;
         }
