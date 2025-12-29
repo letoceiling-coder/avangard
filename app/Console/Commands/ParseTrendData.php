@@ -59,7 +59,7 @@ class ParseTrendData extends Command
         ],
         'plots' => [
             'name' => 'Участки',
-            'endpoint' => 'https://house-api.trendagent.ru/v1/filter/plots',
+            'endpoint' => 'https://house-api.trendagent.ru/v1/search/plots', // Используем search вместо filter
             'method' => 'syncPlot',
             'params' => ['city', 'lang', 'count'],
         ],
