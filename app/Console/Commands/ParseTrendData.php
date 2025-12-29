@@ -338,19 +338,30 @@ class ParseTrendData extends Command
     ): void {
         $endpoint = $typeConfig['endpoint'];
         $method = $typeConfig['method'];
-        $params = $this->buildParams($typeConfig['params'], $city, $limit, $offset, $type);
+        
+        // Пагинация: парсим все страницы до конца
+        $currentOffset = $offset;
+        $totalProcessed = 0;
+        $hasMore = true;
+        $page = 1;
+        
+        $this->line("   Город: {$city->name}");
+        
+        while ($hasMore) {
+            $params = $this->buildParams($typeConfig['params'], $city, $limit, $currentOffset, $type);
 
-        try {
-            // Запрос к API
-            $response = $this->httpClient->get($endpoint, [
-                'query' => $params,
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->authToken,
-                    'Accept' => 'application/json',
-                ],
-            ]);
+            try {
+                // Запрос к API
+                $response = $this->httpClient->get($endpoint, [
+                    'query' => $params,
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $this->authToken,
+                        'Accept' => 'application/json',
+                    ],
+                    'timeout' => 60, // Увеличиваем timeout для больших запросов
+                ]);
 
-            $data = json_decode($response->getBody()->getContents(), true);
+                $data = json_decode($response->getBody()->getContents(), true);
 
             // Определяем структуру ответа в зависимости от типа объекта
             // Для blocks: data.data.results или data.data
@@ -423,61 +434,112 @@ class ParseTrendData extends Command
 
             $this->stats[$type]['total'] += $totalFound;
 
-            // Синхронизация каждого объекта
-            foreach ($objects as $objectData) {
-                try {
-                    $syncMethod = $typeConfig['method'];
-                    
-                    if (!method_exists($this->syncService, $syncMethod)) {
-                        throw new \Exception("Метод {$syncMethod} не существует в TrendDataSyncService");
+                // Синхронизация каждого объекта
+                foreach ($objects as $objectData) {
+                    try {
+                        $syncMethod = $typeConfig['method'];
+                        
+                        if (!method_exists($this->syncService, $syncMethod)) {
+                            throw new \Exception("Метод {$syncMethod} не существует в TrendDataSyncService");
+                        }
+                        
+                        // Передаем город в опциях для методов синхронизации
+                        $syncOptions = array_merge($options, [
+                            'city' => $city,
+                        ]);
+                        
+                        // Вызываем соответствующий метод синхронизации
+                        $syncedObject = $this->syncService->$syncMethod($objectData, $syncOptions);
+
+                        // Определяем, был ли объект создан или обновлен
+                        // Используем сравнение created_at и updated_at (если они равны и очень свежие - значит создан)
+                        $isNew = $syncedObject->created_at && 
+                                 $syncedObject->updated_at && 
+                                 $syncedObject->created_at->equalTo($syncedObject->updated_at) &&
+                                 $syncedObject->created_at->isAfter(now()->subMinute());
+                        
+                        if ($isNew) {
+                            $this->stats[$type]['created']++;
+                        } else {
+                            $this->stats[$type]['updated']++;
+                        }
+                        
+                        $totalProcessed++;
+
+                    } catch (\Exception $e) {
+                        $this->stats[$type]['errors']++;
+                        
+                        Log::error("ParseTrendData: Error syncing object", [
+                            'type' => $type,
+                            'city_guid' => $city->guid,
+                            'object_id' => $objectData['_id'] ?? $objectData['id'] ?? null,
+                            'error' => $e->getMessage(),
+                        ]);
+
+                        if (!$options['skip_errors']) {
+                            throw $e;
+                        }
                     }
-                    
-                    // Передаем город в опциях для методов синхронизации
-                    $syncOptions = array_merge($options, [
-                        'city' => $city,
-                    ]);
-                    
-                    // Вызываем соответствующий метод синхронизации
-                    $syncedObject = $this->syncService->$syncMethod($objectData, $syncOptions);
+                }
+                
+                // Проверяем, есть ли еще объекты для загрузки
+                // Если получено меньше чем limit, значит это последняя страница
+                if ($totalFound < $limit) {
+                    $hasMore = false;
+                } else {
+                    // Переходим к следующей странице
+                    $currentOffset += $limit;
+                    $page++;
+                    // Небольшая задержка между запросами, чтобы не перегружать API (0.1 секунды)
+                    usleep(100000);
+                }
 
-                    // Определяем, был ли объект создан или обновлен
-                    // Используем сравнение created_at и updated_at (если они равны и очень свежие - значит создан)
-                    $isNew = $syncedObject->created_at && 
-                             $syncedObject->updated_at && 
-                             $syncedObject->created_at->equalTo($syncedObject->updated_at) &&
-                             $syncedObject->created_at->isAfter(now()->subMinute());
-                    
-                    if ($isNew) {
-                        $this->stats[$type]['created']++;
-                    } else {
-                        $this->stats[$type]['updated']++;
+            } catch (\GuzzleHttp\Exception\RequestException $e) {
+                Log::error("ParseTrendData: API request failed", [
+                    'type' => $type,
+                    'city_guid' => $city->guid,
+                    'endpoint' => $endpoint,
+                    'offset' => $currentOffset,
+                    'page' => $page,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                if (!$options['skip_errors']) {
+                    throw $e;
+                } else {
+                    // Пропускаем эту страницу и продолжаем
+                    $currentOffset += $limit;
+                    $page++;
+                    // Если это была первая страница, прекращаем пагинацию
+                    if ($page === 1) {
+                        $hasMore = false;
                     }
-
-                } catch (\Exception $e) {
-                    $this->stats[$type]['errors']++;
-                    
-                    Log::error("ParseTrendData: Error syncing object", [
-                        'type' => $type,
-                        'city_guid' => $city->guid,
-                        'object_id' => $objectData['_id'] ?? $objectData['id'] ?? null,
-                        'error' => $e->getMessage(),
-                    ]);
-
-                    if (!$options['skip_errors']) {
-                        throw $e;
+                }
+            } catch (\Exception $e) {
+                Log::error("ParseTrendData: Error parsing {$type} for city {$city->guid}", [
+                    'city_id' => $city->id,
+                    'city_guid' => $city->guid,
+                    'offset' => $currentOffset,
+                    'page' => $page,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                
+                if (!$options['skip_errors']) {
+                    throw $e;
+                } else {
+                    // Пропускаем эту страницу и продолжаем
+                    $currentOffset += $limit;
+                    $page++;
+                    // Если это была первая страница, прекращаем пагинацию
+                    if ($page === 1) {
+                        $hasMore = false;
                     }
                 }
             }
-
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            Log::error("ParseTrendData: API request failed", [
-                'type' => $type,
-                'city_guid' => $city->guid,
-                'endpoint' => $endpoint,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
         }
+        
+        $this->info("   ✅ Всего обработано объектов: {$totalProcessed} (страниц: " . ($page - 1) . ")");
     }
 
     /**
