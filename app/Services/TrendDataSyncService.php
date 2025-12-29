@@ -276,22 +276,80 @@ class TrendDataSyncService
             return null;
         }
         
-        $location = Location::where('guid', $locationData['guid'] ?? '')
+        $guid = $locationData['guid'] ?? null;
+        $externalId = $locationData['_id'] ?? $locationData['id'] ?? null;
+        
+        if (empty($guid)) {
+            return null;
+        }
+        
+        // Ищем локацию по guid и city_id (guid должен быть уникальным в рамках города)
+        $location = Location::where('guid', $guid)
             ->where('city_id', $city->id)
             ->first();
         
-        if (!$location && $options['create_missing_references']) {
-            $location = Location::create([
-                'city_id' => $city->id,
-                'guid' => $locationData['guid'] ?? Str::slug($locationData['name'] ?? ''),
-                'name' => $locationData['name'] ?? '',
-                'crm_id' => $locationData['crm_id'] ?? null,
-                'external_id' => $locationData['_id'] ?? null,
-                'is_active' => true,
-            ]);
+        if ($location) {
+            return $location;
         }
         
-        return $location;
+        // Если не найдена, пытаемся найти по external_id в рамках города
+        if ($externalId) {
+            $location = Location::where('external_id', $externalId)
+                ->where('city_id', $city->id)
+                ->first();
+            
+            if ($location) {
+                // Обновляем guid, если он отличается
+                if ($location->guid !== $guid) {
+                    $location->update(['guid' => $guid]);
+                }
+                return $location;
+            }
+        }
+        
+        // Создаем новую локацию
+        if ($options['create_missing_references']) {
+            try {
+                $location = Location::create([
+                    'city_id' => $city->id,
+                    'guid' => $guid,
+                    'name' => $locationData['name'] ?? '',
+                    'crm_id' => $locationData['crm_id'] ?? null,
+                    'external_id' => $externalId ? (string) $externalId : null,
+                    'is_active' => true,
+                ]);
+                return $location;
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Если произошла ошибка дублирования (возможно, параллельное создание),
+                // пытаемся найти существующую запись
+                if ($e->getCode() == 23000) {
+                    $location = Location::where('guid', $guid)
+                        ->where('city_id', $city->id)
+                        ->first();
+                    
+                    if ($location) {
+                        return $location;
+                    }
+                    
+                    // Если все еще не найдена, проверяем по external_id
+                    if ($externalId) {
+                        $location = Location::where('external_id', $externalId)
+                            ->where('city_id', $city->id)
+                            ->first();
+                        
+                        if ($location) {
+                            if ($location->guid !== $guid) {
+                                $location->update(['guid' => $guid]);
+                            }
+                            return $location;
+                        }
+                    }
+                }
+                throw $e;
+            }
+        }
+        
+        return null;
     }
     
     /**

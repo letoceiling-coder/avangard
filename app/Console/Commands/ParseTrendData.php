@@ -344,15 +344,49 @@ class ParseTrendData extends Command
 
             $data = json_decode($response->getBody()->getContents(), true);
 
-            if (!isset($data['data']) || !is_array($data['data'])) {
+            // Определяем структуру ответа в зависимости от типа объекта
+            // Для blocks: data.data.results или data.data
+            // Для других: data.data или data.results
+            $objects = null;
+            
+            if ($type === 'blocks' || $type === 'commercial-blocks') {
+                // Для blocks API структура: {data: {data: {results: [...]}}}
+                if (isset($data['data']['data']['results']) && is_array($data['data']['data']['results'])) {
+                    $objects = $data['data']['data']['results'];
+                } elseif (isset($data['data']['results']) && is_array($data['data']['results'])) {
+                    $objects = $data['data']['results'];
+                } elseif (isset($data['data']['data']) && is_array($data['data']['data'])) {
+                    $objects = $data['data']['data'];
+                } elseif (isset($data['data']) && is_array($data['data'])) {
+                    $objects = $data['data'];
+                }
+            } else {
+                // Для других типов: data.data, data.results, result, или data
+                if (isset($data['data']['results']) && is_array($data['data']['results'])) {
+                    $objects = $data['data']['results'];
+                } elseif (isset($data['data']['data']) && is_array($data['data']['data'])) {
+                    $objects = $data['data']['data'];
+                } elseif (isset($data['data']) && is_array($data['data'])) {
+                    $objects = $data['data'];
+                } elseif (isset($data['results']) && is_array($data['results'])) {
+                    $objects = $data['results'];
+                } elseif (isset($data['result']) && is_array($data['result'])) {
+                    // Для commercial-premises структура: {result: [...]}
+                    $objects = $data['result'];
+                }
+            }
+
+            if ($objects === null || !is_array($objects)) {
                 Log::warning("ParseTrendData: Invalid response structure for {$type}", [
                     'city_guid' => $city->guid,
                     'response_keys' => array_keys($data),
+                    'has_data' => isset($data['data']),
+                    'data_type' => isset($data['data']) ? gettype($data['data']) : 'not set',
+                    'response_structure' => json_encode(array_slice($data, 0, 3), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
                 ]);
                 return;
             }
 
-            $objects = $data['data'];
             $totalFound = count($objects);
 
             $this->stats[$type]['total'] += $totalFound;
