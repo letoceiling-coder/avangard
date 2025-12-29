@@ -185,10 +185,10 @@ class TrendDataSyncService
             'deadline_over_check' => $apiData['deadline_over_check'] ?? false,
             'finishing' => $apiData['finishing'] ?? null,
             'data_source' => 'parser',
-            'metadata' => $apiData['metadata'] ?? null,
-            'advantages' => $apiData['advantages'] ?? null,
-            'payment_types' => $apiData['payment_types'] ?? null,
-            'contract_types' => $apiData['contract_types'] ?? null,
+            'metadata' => $this->serializeJsonField($apiData['metadata'] ?? null),
+            'advantages' => $this->serializeJsonField($apiData['advantages'] ?? null),
+            'payment_types' => $this->serializeJsonField($apiData['payment_types'] ?? null),
+            'contract_types' => $this->serializeJsonField($apiData['contract_types'] ?? null),
         ], $additionalData);
     }
     
@@ -645,6 +645,34 @@ class TrendDataSyncService
         
         return (string) $value;
     }
+    
+    /**
+     * Сериализовать JSON поле (массив в JSON строку для полей с cast 'array')
+     * Laravel автоматически сериализует массивы при сохранении, если в модели есть cast,
+     * но на случай если cast не настроен, делаем это явно
+     */
+    protected function serializeJsonField($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        
+        // Если уже JSON строка, возвращаем как есть
+        if (is_string($value)) {
+            // Проверяем, что это валидный JSON
+            json_decode($value);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $value;
+            }
+        }
+        
+        // Если массив или объект, сериализуем в JSON
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        
+        return $value;
+    }
 
     /**
      * Синхронизация изображений для объекта Trend
@@ -861,7 +889,7 @@ class TrendDataSyncService
             'external_id' => $apiData['_id'] ?? null,
             'plots_count' => $apiData['plots_count'] ?? $apiData['plotsCount'] ?? 0,
             'view_plots_count' => $apiData['view_plots_count'] ?? $apiData['viewPlotsCount'] ?? 0,
-            'distance' => $apiData['distance'] ?? null,
+            'distance' => is_array($apiData['distance'] ?? null) ? $apiData['distance'] : null,
             'deadline' => $apiData['deadline'] ?? null,
             'deadline_date' => $this->parseDate($apiData['deadline_date'] ?? null),
             'sales_start' => $apiData['sales_start'] ?? null,
@@ -870,8 +898,8 @@ class TrendDataSyncService
             'is_new_village' => $apiData['is_new_village'] ?? $apiData['isNewVillage'] ?? false,
             'is_active' => ($apiData['status'] ?? 1) === 1,
             'data_source' => 'parser',
-            'metadata' => $apiData['metadata'] ?? null,
-            'property_types' => $apiData['property_types'] ?? $apiData['propertyTypes'] ?? null,
+            'metadata' => $this->serializeJsonField($apiData['metadata'] ?? null),
+            'property_types' => $this->serializeJsonField($apiData['property_types'] ?? $apiData['propertyTypes'] ?? null),
         ], $additionalData);
     }
 
@@ -1023,7 +1051,7 @@ class TrendDataSyncService
             'status' => $apiData['status'] ?? 1,
             'is_active' => ($apiData['status'] ?? 1) === 1,
             'data_source' => 'parser',
-            'metadata' => $apiData['metadata'] ?? null,
+            'metadata' => $this->serializeJsonField($apiData['metadata'] ?? null),
         ], $additionalData);
     }
 
@@ -1165,9 +1193,9 @@ class TrendDataSyncService
             'sales_start_at' => $apiData['sales_start_at'] ?? null,
             'reward_label' => $apiData['reward_label'] ?? null,
             'data_source' => 'parser',
-            'metadata' => $apiData['metadata'] ?? null,
-            'property_types' => $apiData['property_types'] ?? $apiData['propertyTypes'] ?? null,
-            'min_prices' => $apiData['min_prices'] ?? $apiData['minPrices'] ?? null,
+            'metadata' => $this->serializeJsonField($apiData['metadata'] ?? null),
+            'property_types' => $this->serializeJsonField($apiData['property_types'] ?? $apiData['propertyTypes'] ?? null),
+            'min_prices' => $this->serializeJsonField($apiData['min_prices'] ?? $apiData['minPrices'] ?? null),
         ], $additionalData);
     }
 
@@ -1330,12 +1358,12 @@ class TrendDataSyncService
             'price_unit' => $apiData['price_unit'] ?? $apiData['priceUnit'] ?? null,
             'area' => $apiData['area'] ?? null,
             'premise_type' => $apiData['premise_type'] ?? $apiData['premiseType'] ?? null,
-            'property_types' => $apiData['property_types'] ?? $apiData['propertyTypes'] ?? null,
+            'property_types' => $this->serializeJsonField($apiData['property_types'] ?? $apiData['propertyTypes'] ?? null),
             'status' => $apiData['status'] ?? 1,
             'is_active' => ($apiData['status'] ?? 1) === 1,
             'is_booked' => $apiData['is_booked'] ?? $apiData['isBooked'] ?? false,
             'data_source' => 'parser',
-            'metadata' => $apiData['metadata'] ?? null,
+            'metadata' => $this->serializeJsonField($apiData['metadata'] ?? null),
         ], $additionalData);
     }
     
