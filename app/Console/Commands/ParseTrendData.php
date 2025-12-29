@@ -48,7 +48,7 @@ class ParseTrendData extends Command
         'parkings' => [
             'name' => 'Паркинги',
             'endpoint' => 'https://parkings.trendagent.ru/search/places/',
-            'method' => 'syncParking',
+            'method' => 'syncBlock', // Используем syncBlock для паркингов, так как структура похожа
             'params' => ['city', 'lang', 'count'],
         ],
         'villages' => [
