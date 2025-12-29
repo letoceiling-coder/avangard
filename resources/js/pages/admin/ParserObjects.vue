@@ -309,12 +309,30 @@ export default {
             this.fetchObjects(page);
         },
         viewObject(obj) {
-            // Здесь можно открыть модальное окно или перейти на страницу детального просмотра
-            console.log('View object:', obj);
+            this.$router.push({
+                name: 'admin.parser.object.view',
+                params: {
+                    type: this.currentType,
+                    id: obj.id.toString(),
+                },
+            }).catch(err => {
+                console.error('Navigation error:', err);
+                // Fallback: используем прямой путь
+                window.location.href = `/admin/parser/objects/${this.currentType}/${obj.id}/view`;
+            });
         },
         editObject(obj) {
-            // Здесь можно открыть модальное окно редактирования
-            console.log('Edit object:', obj);
+            this.$router.push({
+                name: 'admin.parser.object.edit',
+                params: {
+                    type: this.currentType,
+                    id: obj.id.toString(),
+                },
+            }).catch(err => {
+                console.error('Navigation error:', err);
+                // Fallback: используем прямой путь
+                window.location.href = `/admin/parser/objects/${this.currentType}/${obj.id}/edit`;
+            });
         },
         async deleteObject(obj) {
             if (!confirm(`Вы уверены, что хотите удалить объект "${obj.name}"?`)) {

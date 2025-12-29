@@ -36,6 +36,8 @@ class Block extends BaseTrendModel
         'is_active' => 'boolean',
         'deadline_over_check' => 'boolean',
         'deadline_date' => 'datetime',
+        'parsed_at' => 'datetime',
+        'last_synced_at' => 'datetime',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
         'min_price' => 'integer',

@@ -298,6 +298,19 @@ const routes = [
                 component: () => import('./pages/admin/ParserDashboard.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Парсер данных' },
             },
+            // Специфичные роуты должны быть ПЕРЕД общим роутом parser/objects
+            {
+                path: 'parser/objects/:type/:id/view',
+                name: 'admin.parser.object.view',
+                component: () => import('./pages/admin/ParserObjectView.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Просмотр объекта' },
+            },
+            {
+                path: 'parser/objects/:type/:id/edit',
+                name: 'admin.parser.object.edit',
+                component: () => import('./pages/admin/ParserObjectEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактирование объекта' },
+            },
             {
                 path: 'parser/objects',
                 name: 'admin.parser.objects',

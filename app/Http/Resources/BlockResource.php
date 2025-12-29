@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -67,8 +68,8 @@ class BlockResource extends JsonResource
             
             // Источник данных
             'data_source' => $this->data_source,
-            'parsed_at' => $this->parsed_at?->toIso8601String(),
-            'last_synced_at' => $this->last_synced_at?->toIso8601String(),
+            'parsed_at' => $this->formatDateTime($this->parsed_at),
+            'last_synced_at' => $this->formatDateTime($this->last_synced_at),
             
             // Метаданные
             'metadata' => $this->metadata,
@@ -79,6 +80,34 @@ class BlockResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+    
+    /**
+     * Безопасное форматирование даты/времени
+     * Обрабатывает как объекты Carbon, так и строки
+     *
+     * @param mixed $date
+     * @return string|null
+     */
+    private function formatDateTime($date): ?string
+    {
+        if (is_null($date)) {
+            return null;
+        }
+        
+        if ($date instanceof Carbon || $date instanceof \DateTimeInterface) {
+            return $date->toIso8601String();
+        }
+        
+        if (is_string($date)) {
+            try {
+                return Carbon::parse($date)->toIso8601String();
+            } catch (\Exception $e) {
+                return $date; // Возвращаем исходную строку, если не удалось распарсить
+            }
+        }
+        
+        return null;
     }
 }
 
