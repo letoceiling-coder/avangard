@@ -36,6 +36,54 @@
 
         <!-- Object Details -->
         <div v-if="!loading && object" class="space-y-6">
+            <!-- Изображения -->
+            <div v-if="(object.main_image && getImageUrl(object.main_image)) || (object.images && object.images.length > 0 && hasValidImages(object.images))" class="bg-card rounded-lg border border-border p-6">
+                <h2 class="text-xl font-semibold text-foreground mb-4">Изображения</h2>
+                
+                <!-- Главное изображение -->
+                <div v-if="object.main_image && getImageUrl(object.main_image)" class="mb-6">
+                    <label class="block text-sm font-medium text-muted-foreground mb-2">Главное изображение</label>
+                    <div class="relative w-full max-w-2xl rounded-lg overflow-hidden border border-border">
+                        <img
+                            :src="getImageUrl(object.main_image)"
+                            :alt="object.main_image.alt || object.name"
+                            class="w-full h-auto object-cover"
+                            @error="handleImageError"
+                        />
+                    </div>
+                </div>
+                
+                <!-- Галерея изображений -->
+                <div v-if="object.images && object.images.length > 0 && hasValidImages(object.images)">
+                    <label class="block text-sm font-medium text-muted-foreground mb-2">
+                        Галерея ({{ validImagesCount }})
+                    </label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div
+                            v-for="image in object.images.filter(img => getImageUrl(img))"
+                            :key="image.id"
+                            class="relative aspect-video rounded-lg overflow-hidden border border-border cursor-pointer hover:border-accent transition-colors group"
+                            @click="openImageModal(image)"
+                        >
+                            <img
+                                :src="getImageUrl(image, true)"
+                                :alt="image.alt || object.name"
+                                class="w-full h-full object-cover"
+                                @error="handleImageError"
+                            />
+                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                <svg class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path>
+                                </svg>
+                            </div>
+                            <div v-if="image.is_main" class="absolute top-2 right-2 bg-accent text-white text-xs px-2 py-1 rounded">
+                                Главное
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Основная информация -->
             <div class="bg-card rounded-lg border border-border p-6">
                 <h2 class="text-xl font-semibold text-foreground mb-4">Основная информация</h2>
@@ -283,6 +331,34 @@
                 </div>
             </div>
         </div>
+
+        <!-- Image Modal -->
+        <div
+            v-if="selectedImage"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            @click="closeImageModal"
+        >
+            <div class="relative max-w-7xl max-h-full">
+                <button
+                    @click="closeImageModal"
+                    class="absolute top-4 right-4 z-10 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <img
+                    :src="getImageUrl(selectedImage)"
+                    :alt="selectedImage.alt || object?.name"
+                    class="max-w-full max-h-[90vh] object-contain rounded-lg"
+                    @error="handleImageError"
+                />
+                <div v-if="selectedImage.alt || selectedImage.title" class="mt-4 text-center text-white">
+                    <p v-if="selectedImage.title" class="font-semibold">{{ selectedImage.title }}</p>
+                    <p v-if="selectedImage.alt" class="text-sm text-white/80">{{ selectedImage.alt }}</p>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -298,6 +374,7 @@ export default {
             object: null,
             objectType: 'blocks',
             objectId: null,
+            selectedImage: null,
         };
     },
     async mounted() {
@@ -353,6 +430,33 @@ export default {
                 import: 'Импорт',
             };
             return labels[source] || source;
+        },
+        openImageModal(image) {
+            this.selectedImage = image;
+        },
+        closeImageModal() {
+            this.selectedImage = null;
+        },
+        getImageUrl(image, thumbnail = false) {
+            if (!image) return null;
+            
+            if (thumbnail) {
+                return image.url_thumbnail || image.thumbnail_url || image.url_full || image.full_url || image.path || null;
+            }
+            
+            return image.url_full || image.full_url || image.url_thumbnail || image.thumbnail_url || image.path || null;
+        },
+        hasValidImages(images) {
+            if (!images || !Array.isArray(images)) return false;
+            return images.some(img => this.getImageUrl(img));
+        },
+        get validImagesCount() {
+            if (!this.object?.images || !Array.isArray(this.object.images)) return 0;
+            return this.object.images.filter(img => this.getImageUrl(img)).length;
+        },
+        handleImageError(event) {
+            // Заменяем изображение на placeholder при ошибке загрузки
+            event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23e5e7eb"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="sans-serif" font-size="16"%3EИзображение не найдено%3C/text%3E%3C/svg%3E';
         },
     },
 };
