@@ -18,18 +18,18 @@ class UpdateCitiesExternalIdSeeder extends Seeder
      */
     public function run(): void
     {
-        // Известные ObjectId для городов (MongoDB _id из API TrendAgent)
-        // Значения можно получить из ответов API или документации
+        // Известные ObjectId для городов (MongoDB _id из TrendAgent)
+        // Получено из HTML списка городов на сайте TrendAgent (28.12.2025)
         $citiesExternalIds = [
-            'msk' => '5a5cb42159042faa9a218d04',      // Москва (из документации TREND_API_DATA_STRUCTURES.md)
-            'spb' => null,                             // Санкт-Петербург - нужно получить
-            'rostov' => null,                          // Ростов-на-Дону - нужно получить
-            'krasnodar' => null,                       // Краснодар - нужно получить
-            'sochi' => null,                           // Сочи - нужно получить
-            'ekb' => null,                             // Екатеринбург - нужно получить
-            'nsk' => null,                             // Новосибирск - нужно получить
-            'krasnoyarsk' => null,                     // Красноярск - нужно получить
-            'belgorod' => null,                        // Белгород - нужно получить
+            'msk' => '5a5cb42159042faa9a218d04',      // Москва
+            'spb' => '58c665588b6aa52311afa01b',      // Санкт-Петербург
+            'rostov' => '61926fb5bb267a0008de132b',   // Ростов-на-Дону
+            'sochi' => '604b5243f9760700074ac345',    // Краснодарский край, Сочи, Республика Адыгея (используем для Сочи)
+            'krasnodar' => '604b5243f9760700074ac345', // Краснодарский край, Сочи, Республика Адыгея (используем для Краснодара)
+            'ekb' => '650974f78d34c0f790a012a9',      // Екатеринбург
+            'nsk' => '618120c1a56997000866c4d8',      // Новосибирск
+            // 'krasnoyarsk' => null,                  // Красноярск - нет в списке TrendAgent
+            // 'belgorod' => null,                     // Белгород - нет в списке TrendAgent
         ];
 
         $updated = 0;
