@@ -458,11 +458,19 @@ class ParseTrendData extends Command
             $params['show_type'] = 'list';
         }
 
-        // Для blocks API требует MongoDB ObjectId вместо GUID
-        // Используем external_id если есть, иначе guid
-        if ($objectType === 'blocks' && !empty($city->external_id)) {
+        // Большинство API TrendAgent требуют MongoDB ObjectId для параметра city
+        // Используем external_id если есть, иначе guid (для совместимости)
+        // Исключение: некоторые старые API могут работать с guid
+        if (!empty($city->external_id)) {
+            // Все новые API требуют ObjectId (external_id)
             $params['city'] = $city->external_id;
         } else {
+            // Fallback на guid, если external_id не заполнен (должно логироваться)
+            Log::warning("ParseTrendData: City {$city->name} (guid: {$city->guid}) does not have external_id, using guid", [
+                'city_id' => $city->id,
+                'city_guid' => $city->guid,
+                'object_type' => $objectType,
+            ]);
             $params['city'] = $city->guid;
         }
 
