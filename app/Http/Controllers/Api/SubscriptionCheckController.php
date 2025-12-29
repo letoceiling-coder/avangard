@@ -20,6 +20,21 @@ class SubscriptionCheckController extends Controller
      */
     public function check(Request $request)
     {
+        // В локальной разработке всегда возвращаем успешную подписку
+        if (app()->environment('local')) {
+            return response()->json([
+                'success' => true,
+                'is_active' => true,
+                'subscription' => [
+                    'status' => 'active',
+                    'expires_at' => now()->addYear()->toDateTimeString(),
+                    'domain' => request()->getHost(),
+                ],
+                'is_expiring_soon' => false,
+                'days_until_expiry' => 365,
+            ]);
+        }
+        
         try {
             // Очищаем кеш для диагностики (можно убрать после выяснения проблемы)
             if ($request->has('clear_cache')) {

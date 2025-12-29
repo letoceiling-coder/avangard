@@ -21,6 +21,11 @@ class CheckSubscription
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Пропускаем проверку подписки в локальной разработке
+        if (app()->environment('local')) {
+            return $next($request);
+        }
+        
         // Пропускаем проверку для страницы истечения подписки, API endpoints и страниц авторизации
         if ($request->routeIs('subscription.expired') || 
             $request->is('api/*') ||
