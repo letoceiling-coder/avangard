@@ -316,6 +316,12 @@ const routes = [
                 component: () => import('./pages/admin/ParserErrors.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Ошибки парсера' },
             },
+            {
+                path: 'settings',
+                name: 'admin.settings',
+                component: () => import('./pages/admin/Settings.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки' },
+            },
         ],
     },
 ];

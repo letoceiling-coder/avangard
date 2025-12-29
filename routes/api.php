@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\ParserScheduleController;
 use App\Http\Controllers\Api\PlotController;
 use App\Http\Controllers\Api\PriceHistoryController;
 use App\Http\Controllers\Api\RegionController;
+use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\VillageController;
 use Illuminate\Support\Facades\Route;
 

@@ -65,6 +65,12 @@ class AdminMenu
                 'roles' => ['admin'],
             ],
             [
+                'title' => 'Настройки',
+                'route' => 'admin.settings',
+                'icon' => 'settings',
+                'roles' => ['admin'],
+            ],
+            [
                 'title' => 'Подписка',
                 'route' => 'admin.subscription',
                 'icon' => 'credit-card',
