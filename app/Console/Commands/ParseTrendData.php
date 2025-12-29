@@ -419,20 +419,32 @@ class ParseTrendData extends Command
                 }
             }
 
-            if ($objects === null || !is_array($objects)) {
-                Log::warning("ParseTrendData: Invalid response structure for {$type}", [
-                    'city_guid' => $city->guid,
-                    'response_keys' => array_keys($data),
-                    'has_data' => isset($data['data']),
-                    'data_type' => isset($data['data']) ? gettype($data['data']) : 'not set',
-                    'response_structure' => json_encode(array_slice($data, 0, 3), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
-                ]);
-                return;
-            }
+                if ($objects === null || !is_array($objects)) {
+                    // Нет объектов на этой странице, завершаем пагинацию
+                    if ($page === 1) {
+                        // Если на первой странице нет объектов, логируем предупреждение
+                        Log::warning("ParseTrendData: Invalid response structure for {$type}", [
+                            'city_guid' => $city->guid,
+                            'response_keys' => array_keys($data ?? []),
+                            'has_data' => isset($data['data']),
+                            'data_type' => isset($data['data']) ? gettype($data['data']) : 'not set',
+                            'response_structure' => json_encode(array_slice($data ?? [], 0, 3), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+                        ]);
+                    }
+                    $hasMore = false;
+                    break;
+                }
 
-            $totalFound = count($objects);
+                $totalFound = count($objects);
+                
+                if ($totalFound === 0) {
+                    // Нет объектов на этой странице, завершаем пагинацию
+                    $hasMore = false;
+                    break;
+                }
 
-            $this->stats[$type]['total'] += $totalFound;
+                $this->info("   📄 Страница {$page}, offset {$currentOffset}: получено {$totalFound} объектов");
+                $this->stats[$type]['total'] += $totalFound;
 
                 // Синхронизация каждого объекта
                 foreach ($objects as $objectData) {
