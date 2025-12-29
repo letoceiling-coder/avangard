@@ -111,16 +111,22 @@ class ParseTrendData extends Command
 
         // Получение списка городов
         $cities = $this->getCities();
+        
+        // Фильтруем города - используем только те, у которых есть external_id
+        $cities = $cities->filter(function ($city) {
+            return !empty($city->external_id);
+        });
+        
         if ($cities->isEmpty()) {
             $executionTime = microtime(true) - $startTime;
-            $this->error('❌ Не найдено активных городов для парсинга');
-            Log::warning('ParseTrendData: No active cities found', [
+            $this->error('❌ Не найдено активных городов с external_id для парсинга. Выполните команду cities:update-external-id');
+            Log::warning('ParseTrendData: No active cities with external_id found', [
                 'execution_time_seconds' => round($executionTime, 2),
             ]);
             return 1;
         }
 
-        $this->info("✅ Найдено городов: {$cities->count()}");
+        $this->info("✅ Найдено городов с external_id: {$cities->count()}");
         $this->newLine();
 
         // Определение типов объектов для парсинга
