@@ -432,8 +432,13 @@ class ParseTrendData extends Command
                         throw new \Exception("Метод {$syncMethod} не существует в TrendDataSyncService");
                     }
                     
+                    // Передаем город в опциях для методов синхронизации
+                    $syncOptions = array_merge($options, [
+                        'city' => $city,
+                    ]);
+                    
                     // Вызываем соответствующий метод синхронизации
-                    $syncedObject = $this->syncService->$syncMethod($objectData, $options);
+                    $syncedObject = $this->syncService->$syncMethod($objectData, $syncOptions);
 
                     // Определяем, был ли объект создан или обновлен
                     // Используем сравнение created_at и updated_at (если они равны и очень свежие - значит создан)
