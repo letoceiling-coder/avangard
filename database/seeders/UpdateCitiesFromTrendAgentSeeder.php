@@ -84,6 +84,13 @@ class UpdateCitiesFromTrendAgentSeeder extends Seeder
                 'region_name' => 'Новосибирская область',
                 'region_guid' => 'no',
             ],
+            [
+                'external_id' => '63d10e79a8975354f0d41c80',
+                'name' => 'Абу-Даби, Дубай, Рас-Эль-Хайма, Шарджа, Умм-эль-Кайвайн, Аджман',
+                'guid' => 'uae',
+                'region_name' => 'Объединенные Арабские Эмираты',
+                'region_guid' => 'uae-region',
+            ],
         ];
 
         $this->command->info('🔄 Обновление списка городов на основе данных TrendAgent...');
