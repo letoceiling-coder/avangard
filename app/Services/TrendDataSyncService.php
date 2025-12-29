@@ -647,9 +647,13 @@ class TrendDataSyncService
     }
     
     /**
-     * Сериализовать JSON поле (массив в JSON строку для полей с cast 'array')
-     * Laravel автоматически сериализует массивы при сохранении, если в модели есть cast,
-     * но на случай если cast не настроен, делаем это явно
+     * Подготовить JSON поле для сохранения в БД
+     * 
+     * Для полей с cast 'array' в модели Laravel автоматически сериализует массивы в JSON при сохранении,
+     * поэтому мы должны передавать массив/объект как есть, а не JSON строку.
+     * 
+     * Если значение уже JSON строка, декодируем ее в массив для полей с cast 'array'.
+     * Если значение - массив/объект, возвращаем как есть.
      */
     protected function serializeJsonField($value)
     {
@@ -657,18 +661,19 @@ class TrendDataSyncService
             return null;
         }
         
-        // Если уже JSON строка, возвращаем как есть
-        if (is_string($value)) {
-            // Проверяем, что это валидный JSON
-            json_decode($value);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $value;
-            }
+        // Если массив или объект, возвращаем как есть (Laravel сериализует автоматически для cast 'array')
+        if (is_array($value) || is_object($value)) {
+            return $value;
         }
         
-        // Если массив или объект, сериализуем в JSON
-        if (is_array($value) || is_object($value)) {
-            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        // Если строка, пытаемся декодировать JSON (на случай если пришла уже сериализованная строка)
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && (is_array($decoded) || is_object($decoded))) {
+                return $decoded;
+            }
+            // Если не JSON, возвращаем как есть
+            return $value;
         }
         
         return $value;
@@ -889,7 +894,7 @@ class TrendDataSyncService
             'external_id' => $apiData['_id'] ?? null,
             'plots_count' => $apiData['plots_count'] ?? $apiData['plotsCount'] ?? 0,
             'view_plots_count' => $apiData['view_plots_count'] ?? $apiData['viewPlotsCount'] ?? 0,
-            'distance' => $this->serializeJsonField($apiData['distance'] ?? null),
+            'distance' => is_array($apiData['distance'] ?? null) ? $apiData['distance'] : null,
             'deadline' => $apiData['deadline'] ?? null,
             'deadline_date' => $this->parseDate($apiData['deadline_date'] ?? null),
             'sales_start' => $apiData['sales_start'] ?? null,
