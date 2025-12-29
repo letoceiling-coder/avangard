@@ -894,7 +894,7 @@ class TrendDataSyncService
             'external_id' => $apiData['_id'] ?? null,
             'plots_count' => $apiData['plots_count'] ?? $apiData['plotsCount'] ?? 0,
             'view_plots_count' => $apiData['view_plots_count'] ?? $apiData['viewPlotsCount'] ?? 0,
-            'distance' => is_array($apiData['distance'] ?? null) ? $apiData['distance'] : null,
+            'distance' => $this->serializeJsonField($apiData['distance'] ?? null),
             'deadline' => $apiData['deadline'] ?? null,
             'deadline_date' => $this->parseDate($apiData['deadline_date'] ?? null),
             'sales_start' => $apiData['sales_start'] ?? null,
