@@ -491,6 +491,16 @@ const ObjectDetail = () => {
         </section>
       </main>
 
+      {/* Mobile Sticky CTA Footer */}
+      <PropertyStickyCTA
+        price={mockObject.price}
+        phone={mockObject.agentPhone}
+        agentName={mockObject.agentName}
+        propertyTitle={mockObject.title}
+      />
+
+      {/* Spacer for mobile sticky footer */}
+      <div className="h-[64px] md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} />
 
       <Footer />
     </div>
