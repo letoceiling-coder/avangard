@@ -20,6 +20,7 @@ import {
 import PropertyCard from "@/components/PropertyCard";
 import PropertyHeroBlock from "@/components/PropertyHeroBlock";
 import PropertyTopBar from "@/components/PropertyTopBar";
+import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -208,6 +209,18 @@ const PropertyDetail = () => {
           onPhoneClick={handlePhoneClick}
           onRequestClick={handleRequestClick}
         />
+
+        {/* Media Gallery Block */}
+        <div className="mb-6 md:mb-8">
+          <PropertyMediaGallery
+            photos={mockProperty.images.map((url, index) => ({
+              id: `photo-${index + 1}`,
+              url,
+              alt: `${mockProperty.title} - фото ${index + 1}`,
+            }))}
+            propertyTitle={mockProperty.title}
+          />
+        </div>
 
         {/* Main Content */}
         <div className="space-y-6">

@@ -17,6 +17,7 @@ import YandexMap from "@/components/YandexMap";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyHeroBlock from "@/components/PropertyHeroBlock";
 import PropertyTopBar from "@/components/PropertyTopBar";
+import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -188,6 +189,18 @@ const ObjectDetail = () => {
           onPhoneClick={handlePhoneClick}
           onRequestClick={handleRequestClick}
         />
+
+        {/* Media Gallery Block */}
+        <div className="mb-6 md:mb-8">
+          <PropertyMediaGallery
+            photos={mockObject.images.map((url, index) => ({
+              id: `photo-${index + 1}`,
+              url,
+              alt: `${mockObject.title} - фото ${index + 1}`,
+            }))}
+            propertyTitle={mockObject.title}
+          />
+        </div>
 
         {/* Main Content */}
         <div className="space-y-8">
