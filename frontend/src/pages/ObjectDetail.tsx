@@ -11,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { 
-  ChevronRight, Share2, Download
+  ChevronRight, Share2, Download, MapPin
 } from "lucide-react";
 import YandexMap from "@/components/YandexMap";
 import PropertyCard from "@/components/PropertyCard";

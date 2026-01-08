@@ -111,10 +111,10 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
   return (
     <>
       {/* Hero Block - Desktop: 2 columns (60% / 40%), Mobile: stacked */}
-      <div className="mb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 lg:gap-6">
+      <div className="mb-6 md:mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-4 lg:gap-6">
           {/* Left Column - Gallery Slider (60% on desktop) */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 order-1 lg:order-1">
             {/* Desktop Carousel */}
             <div className="hidden lg:block">
               <Carousel
@@ -129,35 +129,36 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                   {property.images.map((image, index) => (
                     <CarouselItem key={index} className="pl-0">
                       <div 
-                        className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-muted/30 cursor-pointer group"
+                        className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted/20 cursor-pointer group"
                         onClick={() => handleImageClick(index)}
                       >
                         <img
                           src={image}
                           alt={`${property.title} - фото ${index + 1}`}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                           loading={index === 0 ? "eager" : "lazy"}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         
                         {/* Image Counter */}
-                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full text-white text-sm font-medium">
-                          {index + 1} / {property.images.length}
-                        </div>
+                        {property.images.length > 1 && (
+                          <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-md text-white text-xs font-medium">
+                            {index + 1} / {property.images.length}
+                          </div>
+                        )}
 
                         {/* Fullscreen Button */}
-                        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
                             variant="secondary"
                             size="icon"
-                            className="w-10 h-10 rounded-full bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
+                            className="w-9 h-9 rounded-lg bg-white/95 hover:bg-white backdrop-blur-sm shadow-md"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleImageClick(index);
                             }}
                             aria-label="Открыть в полноэкранном режиме"
                           >
-                            <Maximize2 className="w-5 h-5" />
+                            <Maximize2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
@@ -166,8 +167,8 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                 </CarouselContent>
                 {property.images.length > 1 && (
                   <>
-                    <CarouselPrevious className="left-4 bg-white/90 hover:bg-white backdrop-blur-sm border-0 shadow-lg" />
-                    <CarouselNext className="right-4 bg-white/90 hover:bg-white backdrop-blur-sm border-0 shadow-lg" />
+                    <CarouselPrevious className="left-3 bg-white/95 hover:bg-white backdrop-blur-sm border-0 shadow-lg w-10 h-10" />
+                    <CarouselNext className="right-3 bg-white/95 hover:bg-white backdrop-blur-sm border-0 shadow-lg w-10 h-10" />
                   </>
                 )}
               </Carousel>
@@ -184,8 +185,8 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                       className={cn(
                         "flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all",
                         currentImageIndex === index
-                          ? "border-primary scale-105 shadow-md"
-                          : "border-transparent hover:border-border opacity-70 hover:opacity-100"
+                          ? "border-primary scale-105 shadow-sm"
+                          : "border-transparent hover:border-border/50 opacity-70 hover:opacity-100"
                       )}
                       aria-label={`Показать фото ${index + 1}`}
                     >
@@ -214,7 +215,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                   {property.images.map((image, index) => (
                     <CarouselItem key={index} className="pl-0">
                       <div 
-                        className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-muted/30"
+                        className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted/20"
                         onClick={() => handleImageClick(index)}
                       >
                         <img
@@ -225,24 +226,26 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                         />
                         
                         {/* Image Counter */}
-                        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full text-white text-xs font-medium">
-                          {index + 1} / {property.images.length}
-                        </div>
+                        {property.images.length > 1 && (
+                          <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm px-2 py-0.5 rounded-md text-white text-xs font-medium">
+                            {index + 1} / {property.images.length}
+                          </div>
+                        )}
                       </div>
                     </CarouselItem>
                   ))}
                 </CarouselContent>
                 {property.images.length > 1 && (
                   <>
-                    <CarouselPrevious className="left-2 bg-white/90 hover:bg-white backdrop-blur-sm border-0 shadow-lg h-8 w-8" />
-                    <CarouselNext className="right-2 bg-white/90 hover:bg-white backdrop-blur-sm border-0 shadow-lg h-8 w-8" />
+                    <CarouselPrevious className="left-2 bg-white/95 hover:bg-white backdrop-blur-sm border-0 shadow-lg h-8 w-8" />
+                    <CarouselNext className="right-2 bg-white/95 hover:bg-white backdrop-blur-sm border-0 shadow-lg h-8 w-8" />
                   </>
                 )}
               </Carousel>
 
               {/* Dots Indicator */}
               {property.images.length > 1 && (
-                <div className="flex justify-center gap-2 mt-3">
+                <div className="flex justify-center gap-1.5 mt-3">
                   {property.images.map((_, index) => (
                     <button
                       key={index}
@@ -250,10 +253,10 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                         mobileApi?.scrollTo(index);
                       }}
                       className={cn(
-                        "h-2 rounded-full transition-all",
+                        "h-1.5 rounded-full transition-all",
                         currentImageIndex === index
                           ? "bg-primary w-6"
-                          : "bg-muted-foreground/30 w-2 hover:bg-muted-foreground/50"
+                          : "bg-muted-foreground/30 w-1.5 hover:bg-muted-foreground/50"
                       )}
                       aria-label={`Показать фото ${index + 1}`}
                     />
@@ -264,11 +267,11 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
           </div>
 
           {/* Right Column - Info Block (40% on desktop, sticky) */}
-          <div className="lg:col-span-1">
-            <div className="lg:sticky lg:top-6 bg-card rounded-2xl border border-border p-6 shadow-card space-y-5">
+          <div className="lg:col-span-1 order-2 lg:order-2">
+            <div className="lg:sticky lg:top-6 bg-white rounded-xl border border-border/50 p-5 lg:p-6 space-y-5 shadow-sm">
               {/* Price Section - Main Accent */}
-              <div className="pb-4 border-b border-border">
-                <p className="text-3xl md:text-4xl font-bold text-foreground mb-1.5">
+              <div className="pb-4 border-b border-border/50">
+                <p className="text-3xl md:text-4xl font-bold text-foreground mb-1.5 leading-tight">
                   {formatPrice(property.price)}
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -278,17 +281,17 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
 
               {/* Type Badge */}
               <div>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                   {property.type}
                 </span>
               </div>
 
               {/* Quick Parameters - One Line */}
-              <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-                <span className="font-medium text-foreground">{property.rooms} комн.</span>
-                <span>•</span>
+              <div className="flex items-center gap-2.5 text-sm text-muted-foreground flex-wrap">
+                <span className="font-semibold text-foreground">{property.rooms} комн.</span>
+                <span className="text-muted-foreground/50">•</span>
                 <span>{property.area} м²</span>
-                <span>•</span>
+                <span className="text-muted-foreground/50">•</span>
                 <span>{property.floor}/{property.totalFloors} этаж</span>
               </div>
 
@@ -297,7 +300,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                 <div className="flex items-start gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground font-medium">{property.address}</p>
+                    <p className="text-sm text-foreground font-medium leading-snug">{property.address}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{property.district}</p>
                   </div>
                 </div>
@@ -305,7 +308,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                   href={`https://yandex.ru/maps/?text=${encodeURIComponent(property.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors"
+                  className="text-sm text-primary hover:text-primary/80 hover:underline inline-flex items-center gap-1 transition-colors"
                 >
                   На карте
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -313,13 +316,12 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-1">
                 {/* Favorite Button */}
                 <Button
                   variant="outline"
                   size="lg"
-                  fullWidth
-                  className="justify-center"
+                  className="w-full justify-center h-11 border-border/50 hover:bg-muted/50"
                   onClick={toggleFavorite}
                   aria-label={favorite ? "Удалить из избранного" : "Добавить в избранное"}
                 >
@@ -340,8 +342,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                     <Button
                       variant="primary"
                       size="lg"
-                      fullWidth
-                      className="min-h-[48px] font-semibold"
+                      className="w-full min-h-[48px] h-12 font-semibold text-base"
                       onClick={onRequestClick}
                     >
                       Забронировать
@@ -353,10 +354,10 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                 <Button
                   variant="outline"
                   size="lg"
-                  fullWidth
-                  leftIcon={<Phone className="w-5 h-5" />}
+                  className="w-full h-11 border-border/50 hover:bg-muted/50"
                   onClick={onPhoneClick}
                 >
+                  <Phone className="w-4 h-4 mr-2" />
                   Контакты
                 </Button>
               </div>
@@ -366,20 +367,20 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
       </div>
 
       {/* Mobile Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-background border-t border-border p-4 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center gap-3">
+      <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-white border-t border-border/50 p-3 z-50 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]">
+        <div className="container mx-auto flex items-center gap-2.5">
           <Button
             variant="ghost"
             size="icon"
             className={cn(
-              "flex-shrink-0 min-h-[44px] min-w-[44px] w-12 h-12 rounded-xl",
-              favorite ? "text-primary bg-primary/10" : "text-muted-foreground"
+              "flex-shrink-0 min-h-[44px] min-w-[44px] w-11 h-11 rounded-lg",
+              favorite ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
             )}
             onClick={toggleFavorite}
             aria-label={favorite ? "Удалить из избранного" : "Добавить в избранное"}
           >
             <Heart className={cn(
-              "w-6 h-6",
+              "w-5 h-5",
               favorite && "fill-primary text-primary"
             )} />
           </Button>
@@ -392,7 +393,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
               <Button
                 variant="primary"
                 size="lg"
-                className="flex-1 min-h-[44px] h-12 rounded-xl font-semibold text-base"
+                className="flex-1 min-h-[44px] h-11 rounded-lg font-semibold text-base"
                 onClick={onRequestClick}
               >
                 Забронировать
