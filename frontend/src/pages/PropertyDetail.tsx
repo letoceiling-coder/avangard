@@ -12,14 +12,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { 
-  Heart, Phone, MapPin, Home, Calendar, 
+  MapPin, Home, Calendar, 
   CreditCard, Building2, Car, Shield, Trees, 
   Share2, Check, Copy, MessageCircle,
   Ruler, DoorOpen, Bath, Sparkles, ChevronRight
 } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyHeroBlock from "@/components/PropertyHeroBlock";
-import { useFavorites } from "@/hooks/useFavorites";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -107,9 +106,6 @@ const similarProperties = [
 const PropertyDetail = () => {
   const { id } = useParams();
   const [showFullDescription, setShowFullDescription] = useState(false);
-  const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
-  
-  const favorite = isFavorite(mockProperty.id);
 
   const formatPrice = (price: number) => {
     return price.toLocaleString("ru-RU") + " ₽";
@@ -372,47 +368,6 @@ const PropertyDetail = () => {
         </section>
       </main>
 
-      {/* Mobile Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-white border-t border-border/50 p-4 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`flex-shrink-0 min-h-[44px] min-w-[44px] w-12 h-12 rounded-xl ${favorite ? "text-primary bg-primary/10" : "text-muted-foreground"}`}
-            onClick={() => {
-              if (favorite) {
-                removeFromFavorites(mockProperty.id);
-                toast.success("Удалено из избранного");
-              } else {
-                addToFavorites({
-                  id: mockProperty.id,
-                  title: mockProperty.title,
-                  price: mockProperty.price,
-                  image: mockProperty.images[0],
-                  area: mockProperty.area,
-                  rooms: mockProperty.rooms,
-                  floor: mockProperty.floor,
-                  address: mockProperty.address,
-                  type: mockProperty.type,
-                });
-                toast.success("Добавлено в избранное");
-              }
-            }}
-            aria-label={favorite ? "Удалить из избранного" : "Добавить в избранное"}
-          >
-            <Heart className={`w-6 h-6 ${favorite ? "fill-primary text-primary" : ""}`} />
-          </Button>
-          <Button
-            variant="primary"
-            size="lg"
-            className="flex-1 min-h-[44px] h-12 rounded-xl font-semibold text-base"
-            onClick={handleRequestClick}
-            aria-label="Оставить заявку на просмотр объекта"
-          >
-            Забронировать
-          </Button>
-        </div>
-      </div>
 
       <Footer />
     </div>

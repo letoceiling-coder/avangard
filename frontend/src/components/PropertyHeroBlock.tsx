@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
   Heart, Phone, MapPin, Maximize2, 
@@ -75,13 +75,46 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
     setShowFullscreen(true);
   };
 
+  // Sync carousel with currentImageIndex
+  useEffect(() => {
+    if (!api) return;
+    api.on("select", () => {
+      setCurrentImageIndex(api.selectedScrollSnap());
+    });
+  }, [api]);
+
+  useEffect(() => {
+    if (!mobileApi) return;
+    mobileApi.on("select", () => {
+      setCurrentImageIndex(mobileApi.selectedScrollSnap());
+    });
+  }, [mobileApi]);
+
+  // Keyboard navigation for fullscreen
+  useEffect(() => {
+    if (!showFullscreen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
+      } else if (e.key === "ArrowRight") {
+        setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
+      } else if (e.key === "Escape") {
+        setShowFullscreen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showFullscreen, property.images.length]);
+
   return (
     <>
-      {/* Hero Block - Desktop: 2 columns, Mobile: stacked */}
+      {/* Hero Block - Desktop: 2 columns (60% / 40%), Mobile: stacked */}
       <div className="mb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6">
-          {/* Left Column - Gallery (60% on desktop) */}
-          <div className="lg:col-span-3">
+        <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 lg:gap-6">
+          {/* Left Column - Gallery Slider (60% on desktop) */}
+          <div className="lg:col-span-1">
             {/* Desktop Carousel */}
             <div className="hidden lg:block">
               <Carousel
@@ -90,13 +123,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                   align: "start",
                   loop: true,
                 }}
-                setApi={(api) => {
-                  if (api) {
-                    api.on("select", () => {
-                      setCurrentImageIndex(api.selectedScrollSnap());
-                    });
-                  }
-                }}
+                setApi={setApi}
               >
                 <CarouselContent className="-ml-0">
                   {property.images.map((image, index) => (
@@ -109,11 +136,12 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                           src={image}
                           alt={`${property.title} - фото ${index + 1}`}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          loading={index === 0 ? "eager" : "lazy"}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         
                         {/* Image Counter */}
-                        <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-full text-white text-sm font-medium">
+                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full text-white text-sm font-medium">
                           {index + 1} / {property.images.length}
                         </div>
 
@@ -122,11 +150,12 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                           <Button
                             variant="secondary"
                             size="icon"
-                            className="w-10 h-10 rounded-full bg-white/90 hover:bg-white backdrop-blur-sm"
+                            className="w-10 h-10 rounded-full bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleImageClick(index);
                             }}
+                            aria-label="Открыть в полноэкранном режиме"
                           >
                             <Maximize2 className="w-5 h-5" />
                           </Button>
@@ -145,7 +174,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
 
               {/* Thumbnails */}
               {property.images.length > 1 && (
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                   {property.images.map((image, index) => (
                     <button
                       key={index}
@@ -155,9 +184,10 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                       className={cn(
                         "flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all",
                         currentImageIndex === index
-                          ? "border-primary scale-105"
+                          ? "border-primary scale-105 shadow-md"
                           : "border-transparent hover:border-border opacity-70 hover:opacity-100"
                       )}
+                      aria-label={`Показать фото ${index + 1}`}
                     >
                       <img
                         src={image}
@@ -178,14 +208,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                   align: "start",
                   loop: true,
                 }}
-                setApi={(carouselApi) => {
-                  if (carouselApi) {
-                    setMobileApi(carouselApi);
-                    carouselApi.on("select", () => {
-                      setCurrentImageIndex(carouselApi.selectedScrollSnap());
-                    });
-                  }
-                }}
+                setApi={setMobileApi}
               >
                 <CarouselContent className="-ml-0">
                   {property.images.map((image, index) => (
@@ -198,10 +221,11 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                           src={image}
                           alt={`${property.title} - фото ${index + 1}`}
                           className="w-full h-full object-cover"
+                          loading={index === 0 ? "eager" : "lazy"}
                         />
                         
                         {/* Image Counter */}
-                        <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-full text-white text-xs font-medium">
+                        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full text-white text-xs font-medium">
                           {index + 1} / {property.images.length}
                         </div>
                       </div>
@@ -231,6 +255,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                           ? "bg-primary w-6"
                           : "bg-muted-foreground/30 w-2 hover:bg-muted-foreground/50"
                       )}
+                      aria-label={`Показать фото ${index + 1}`}
                     />
                   ))}
                 </div>
@@ -238,12 +263,12 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
             </div>
           </div>
 
-          {/* Right Column - Info Block (40% on desktop) */}
-          <div className="lg:col-span-2">
-            <div className="lg:sticky lg:top-6 bg-card rounded-2xl border border-border p-6 shadow-card space-y-6">
-              {/* Price Section */}
+          {/* Right Column - Info Block (40% on desktop, sticky) */}
+          <div className="lg:col-span-1">
+            <div className="lg:sticky lg:top-6 bg-card rounded-2xl border border-border p-6 shadow-card space-y-5">
+              {/* Price Section - Main Accent */}
               <div className="pb-4 border-b border-border">
-                <p className="text-3xl md:text-4xl font-bold text-foreground mb-1">
+                <p className="text-3xl md:text-4xl font-bold text-foreground mb-1.5">
                   {formatPrice(property.price)}
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -258,9 +283,9 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                 </span>
               </div>
 
-              {/* Quick Parameters */}
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{property.rooms} комн.</span>
+              {/* Quick Parameters - One Line */}
+              <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                <span className="font-medium text-foreground">{property.rooms} комн.</span>
                 <span>•</span>
                 <span>{property.area} м²</span>
                 <span>•</span>
@@ -268,21 +293,22 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
               </div>
 
               {/* Address */}
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <div className="flex items-start gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm">{property.address}</p>
-                    <p className="text-xs mt-0.5">{property.district}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground font-medium">{property.address}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{property.district}</p>
                   </div>
                 </div>
                 <a
                   href={`https://yandex.ru/maps/?text=${encodeURIComponent(property.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors"
                 >
                   На карте
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </a>
               </div>
 
@@ -295,6 +321,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                   fullWidth
                   className="justify-center"
                   onClick={toggleFavorite}
+                  aria-label={favorite ? "Удалить из избранного" : "Добавить в избранное"}
                 >
                   <Heart className={cn(
                     "w-5 h-5 mr-2",
@@ -303,15 +330,26 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                   {favorite ? "В избранном" : "В избранное"}
                 </Button>
 
-                {/* Main CTA */}
+                {/* Main CTA - Забронировать / Оставить заявку */}
                 <ViewingRequestForm
                   propertyId={property.id}
                   propertyTitle={property.title}
                   propertyImage={property.images[0]}
                   propertyPrice={property.price}
+                  trigger={
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      fullWidth
+                      className="min-h-[48px] font-semibold"
+                      onClick={onRequestClick}
+                    >
+                      Забронировать
+                    </Button>
+                  }
                 />
 
-                {/* Secondary CTA */}
+                {/* Secondary CTA - Контакты / Показать телефон */}
                 <Button
                   variant="outline"
                   size="lg"
@@ -327,15 +365,53 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
         </div>
       </div>
 
+      {/* Mobile Sticky Bottom Bar */}
+      <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-background border-t border-border p-4 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "flex-shrink-0 min-h-[44px] min-w-[44px] w-12 h-12 rounded-xl",
+              favorite ? "text-primary bg-primary/10" : "text-muted-foreground"
+            )}
+            onClick={toggleFavorite}
+            aria-label={favorite ? "Удалить из избранного" : "Добавить в избранное"}
+          >
+            <Heart className={cn(
+              "w-6 h-6",
+              favorite && "fill-primary text-primary"
+            )} />
+          </Button>
+          <ViewingRequestForm
+            propertyId={property.id}
+            propertyTitle={property.title}
+            propertyImage={property.images[0]}
+            propertyPrice={property.price}
+            trigger={
+              <Button
+                variant="primary"
+                size="lg"
+                className="flex-1 min-h-[44px] h-12 rounded-xl font-semibold text-base"
+                onClick={onRequestClick}
+              >
+                Забронировать
+              </Button>
+            }
+          />
+        </div>
+      </div>
+
       {/* Fullscreen Gallery Modal */}
       {showFullscreen && (
         <div 
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
           onClick={() => setShowFullscreen(false)}
         >
           <button
             onClick={() => setShowFullscreen(false)}
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10"
+            aria-label="Закрыть"
           >
             <X className="w-6 h-6" />
           </button>
@@ -346,6 +422,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
               setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
             }}
             className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors z-10"
+            aria-label="Предыдущее фото"
           >
             <ChevronLeft className="w-6 h-6 text-white" />
           </button>
@@ -363,13 +440,14 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
               setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
             }}
             className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors z-10"
+            aria-label="Следующее фото"
           >
             <ChevronRight className="w-6 h-6 text-white" />
           </button>
 
           {/* Thumbnails */}
           <div 
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 max-w-[80%] overflow-x-auto"
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 max-w-[80%] overflow-x-auto pb-2"
             onClick={(e) => e.stopPropagation()}
           >
             {property.images.map((img, index) => (
@@ -382,6 +460,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                     ? "ring-2 ring-white scale-110" 
                     : "opacity-50 hover:opacity-100"
                 )}
+                aria-label={`Показать фото ${index + 1}`}
               >
                 <img src={img} alt="" className="w-full h-full object-cover" />
               </button>
@@ -398,4 +477,3 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
 };
 
 export default PropertyHeroBlock;
-
