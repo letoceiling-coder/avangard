@@ -15,7 +15,7 @@ import {
   MapPin, Home, Calendar, 
   CreditCard, Building2, Car, Shield, Trees, 
   Share2, Check, Copy, MessageCircle,
-  Ruler, DoorOpen, Bath, Sparkles, ChevronRight
+  Ruler, DoorOpen, Bath, Sparkles, ChevronRight, Maximize2
 } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyHeroBlock from "@/components/PropertyHeroBlock";
