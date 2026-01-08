@@ -24,6 +24,7 @@ import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
 import PropertyTitleBlock from "@/components/PropertyTitleBlock";
 import PropertyAddressBlock from "@/components/PropertyAddressBlock";
+import PropertyQuickActions from "@/components/PropertyQuickActions";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -253,6 +254,23 @@ const PropertyDetail = () => {
           district={mockProperty.district}
           nearestMetro={mockProperty.metro}
           city={mockProperty.city}
+        />
+
+        {/* Quick Actions */}
+        <PropertyQuickActions
+          propertyId={mockProperty.id}
+          property={{
+            id: mockProperty.id,
+            title: mockProperty.title,
+            price: mockProperty.price,
+            image: mockProperty.images[0],
+            area: mockProperty.area,
+            rooms: mockProperty.rooms,
+            floor: mockProperty.floor,
+            address: mockProperty.address,
+            type: mockProperty.type,
+            pricePerMeter: mockProperty.pricePerMeter,
+          }}
         />
 
         {/* Main Content */}
