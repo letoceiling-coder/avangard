@@ -1,5 +1,136 @@
 # Решение проблем с деплоем
 
+## Проблема: Нет прав на запись в репозиторий (403 Forbidden)
+
+### Симптомы:
+```
+❌ ОШИБКА: Ошибка отправки в репозиторий:
+     remote: Permission denied (publickey).
+     fatal: Could not read from remote repository.
+     
+Или:
+❌ ОШИБКА 403: у пользователя USERNAME нет прав на запись в репозиторий
+```
+
+### Причины:
+1. **Нет прав на запись через HTTPS** - требуется аутентификация
+2. **SSH ключи не настроены** - нет доступа через SSH
+3. **Неверные credentials** - неправильный токен или пароль
+4. **Пользователь не добавлен как collaborator** - нет прав на репозиторий
+
+### Решения:
+
+#### Вариант 1: Personal Access Token (быстро, рекомендуется для Windows)
+
+**Создание токена:**
+1. Откройте: https://github.com/settings/tokens
+2. Нажмите `Generate new token (classic)`
+3. Название: `Avangard Deploy`
+4. Права: выберите `repo` (полный доступ к репозиториям)
+5. Нажмите `Generate token`
+6. **СКОПИРУЙТЕ ТОКЕН** (он показывается только один раз!)
+
+**Настройка через скрипт:**
+
+**Windows:**
+```bash
+setup-git-token.bat
+```
+
+**macOS/Linux:**
+```bash
+chmod +x setup-git-token.sh
+./setup-git-token.sh
+```
+
+**Ручная настройка:**
+```bash
+# Замените YOUR_USERNAME и YOUR_TOKEN на ваши данные
+git remote set-url origin https://YOUR_USERNAME:YOUR_TOKEN@github.com/letoceiling-coder/avangard.git
+
+# Или без username (токен содержит информацию о пользователе)
+git remote set-url origin https://YOUR_TOKEN@github.com/letoceiling-coder/avangard.git
+```
+
+**Проверка:**
+```bash
+git remote -v
+git push origin main
+```
+
+#### Вариант 2: SSH (рекомендуется для macOS/Linux)
+
+**Настройка через скрипт:**
+```bash
+chmod +x setup-git-ssh.sh
+./setup-git-ssh.sh
+```
+
+**Ручная настройка:**
+
+1. **Проверьте наличие SSH ключей:**
+```bash
+ls -la ~/.ssh/id_*.pub
+```
+
+2. **Если ключей нет, создайте новый:**
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+# Нажмите Enter для всех вопросов (или укажите пароль)
+```
+
+3. **Скопируйте публичный ключ:**
+```bash
+cat ~/.ssh/id_ed25519.pub
+# Или для RSA:
+cat ~/.ssh/id_rsa.pub
+```
+
+4. **Добавьте ключ в GitHub:**
+   - Откройте: https://github.com/settings/ssh/new
+   - Вставьте скопированный ключ
+   - Нажмите `Add SSH key`
+
+5. **Переключите remote на SSH:**
+```bash
+git remote set-url origin git@github.com:letoceiling-coder/avangard.git
+```
+
+6. **Проверьте подключение:**
+```bash
+ssh -T git@github.com
+# Должно быть: Hi USERNAME! You've successfully authenticated...
+```
+
+#### Вариант 3: Получить права на репозиторий
+
+Попросите владельца репозитория (letoceiling-coder) добавить вас как collaborator с правами на запись:
+1. Владелец должен перейти в: Settings → Collaborators
+2. Добавить ваш GitHub username
+3. Выбрать права: `Write` или `Admin`
+
+### Проверка конфигурации:
+
+```bash
+# Проверка remote URL
+git remote -v
+
+# Проверка прав доступа (для HTTPS)
+git ls-remote origin
+
+# Проверка SSH подключения
+ssh -T git@github.com
+```
+
+### После настройки:
+
+Повторите деплой:
+```bash
+php artisan deploy --insecure --skip-commit-check
+```
+
+---
+
 ## Проблема: Коммит на сервере не совпадает с ожидаемым
 
 ### Симптомы:
