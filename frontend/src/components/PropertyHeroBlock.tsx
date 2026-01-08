@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
   Heart, Phone, MapPin, 
-  ChevronLeft, ChevronRight, X, Expand
+  ChevronLeft, ChevronRight, X, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -158,7 +158,7 @@ const PropertyHeroBlock = ({ property, onPhoneClick, onRequestClick }: PropertyH
                             }}
                             aria-label="Открыть в полноэкранном режиме"
                           >
-                            <Expand className="w-4 h-4" />
+                            <ExternalLink className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
