@@ -23,6 +23,7 @@ import PropertyTopBar from "@/components/PropertyTopBar";
 import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
 import PropertyTitleBlock from "@/components/PropertyTitleBlock";
+import PropertyAddressBlock from "@/components/PropertyAddressBlock";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -72,6 +73,7 @@ const mockProperty = {
   coordinates: [50.5997, 36.5873] as [number, number],
   propertyType: "квартира" as const,
   city: "Белгород",
+  metro: null,
 };
 
 const similarProperties = [
@@ -243,6 +245,13 @@ const PropertyDetail = () => {
           totalFloors={mockProperty.totalFloors}
           buildingName={mockProperty.complex.replace("ЖК «", "").replace("»", "")}
           city={mockProperty.city}
+        />
+
+        {/* Address Block */}
+        <PropertyAddressBlock
+          address={mockProperty.address}
+          city={mockProperty.city}
+          metro={mockProperty.metro}
         />
 
         {/* Main Content */}
