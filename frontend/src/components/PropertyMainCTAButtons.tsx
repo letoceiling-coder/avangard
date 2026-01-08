@@ -77,21 +77,11 @@ const PropertyMainCTAButtons = ({
       <div
         className={cn(
           "flex flex-col gap-3",
-          className
-        )}
-        style={{
-          padding: "12px 16px",
-          gap: "12px",
-        }}
-        // @ts-ignore - Tailwind responsive
-        className={cn(
-          "flex flex-col gap-3",
           "px-4 py-3",
           "md:px-6 md:py-4",
           className
         )}
         style={{
-          padding: window.innerWidth >= 768 ? "16px 24px" : "12px 16px",
           gap: "12px",
         }}
       >
