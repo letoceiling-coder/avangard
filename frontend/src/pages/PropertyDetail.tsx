@@ -30,6 +30,7 @@ import PropertyKeyFeatures from "@/components/PropertyKeyFeatures";
 import PropertyDescription from "@/components/PropertyDescription";
 import PropertyFullDetails from "@/components/PropertyFullDetails";
 import PropertyInfrastructure from "@/components/PropertyInfrastructure";
+import PropertyMap from "@/components/PropertyMap";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -363,6 +364,14 @@ const PropertyDetail = () => {
 
         {/* Infrastructure */}
         <PropertyInfrastructure infrastructure={mockProperty.infrastructure} />
+
+        {/* Map */}
+        <PropertyMap
+          latitude={mockProperty.coordinates[0]}
+          longitude={mockProperty.coordinates[1]}
+          address={mockProperty.address}
+          city={mockProperty.city}
+        />
 
         {/* Main Content */}
         <div className="space-y-6">
