@@ -22,6 +22,7 @@ import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
 import PropertyTitleBlock from "@/components/PropertyTitleBlock";
 import PropertyAddressBlock from "@/components/PropertyAddressBlock";
 import PropertyQuickActions from "@/components/PropertyQuickActions";
+import PropertyMainCTAButtons from "@/components/PropertyMainCTAButtons";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -251,6 +252,15 @@ const ObjectDetail = () => {
             type: mockObject.type,
             pricePerMeter: mockObject.pricePerMeter,
           }}
+        />
+
+        {/* Main CTA Buttons */}
+        <PropertyMainCTAButtons
+          phone={mockObject.agentPhone}
+          agentName={mockObject.agentName}
+          hasSecurity={false}
+          inRegistry={true}
+          propertyTitle={mockObject.title}
         />
 
         {/* Main Content */}
