@@ -25,6 +25,7 @@ import PropertyQuickActions from "@/components/PropertyQuickActions";
 import PropertyMainCTAButtons from "@/components/PropertyMainCTAButtons";
 import PropertyKeyFeatures from "@/components/PropertyKeyFeatures";
 import PropertyDescription from "@/components/PropertyDescription";
+import PropertyFullDetails from "@/components/PropertyFullDetails";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -61,6 +62,63 @@ const mockObject = {
   propertyType: "квартира" as const,
   city: "Белгород",
   metro: null,
+  keyFeatures: [
+    { label: "Комнат", value: "3" },
+    { label: "Площадь", value: "85 м²" },
+    { label: "Этаж", value: "12/25" },
+    { label: "Тип жилья", value: "Квартира" },
+    { label: "Ремонт", value: "Чистовая" },
+    { label: "Санузел", value: "Раздельный" },
+    { label: "Балкон", value: "2 лоджии" },
+    { label: "Вид из окна", value: "На двор" },
+    { label: "Перепланировка", value: "Нет" },
+    { label: "Газ", value: "Да" },
+  ],
+  fullDetails: [
+    {
+      title: "О КВАРТИРЕ",
+      parameters: [
+        { label: "Тип", value: "Квартира" },
+        { label: "Комнат", value: "3" },
+        { label: "Площадь", value: "85 м²" },
+        { label: "Жилая площадь", value: "65 м²" },
+        { label: "Кухня", value: "12 м²" },
+        { label: "Этаж", value: "12" },
+        { label: "Всего этажей", value: "25" },
+        { label: "Ремонт", value: "Чистовая" },
+        { label: "Год постройки", value: "2024" },
+      ],
+    },
+    {
+      title: "О ДОМЕ",
+      parameters: [
+        { label: "Год постройки", value: "2024" },
+        { label: "Тип", value: "Монолит-кирпич" },
+        { label: "Этажность", value: "25" },
+        { label: "Лифт", value: "Пассажирский" },
+        { label: "Интернет", value: "Да" },
+        { label: "Парковка", value: "Подземная" },
+      ],
+    },
+    {
+      title: "ДОКУМЕНТЫ И СДЕЛКА",
+      parameters: [
+        { label: "Собственник", value: "Частный" },
+        { label: "Право собственности", value: "Сертификат" },
+        { label: "Ипотека", value: "Возможна" },
+        { label: "Договор", value: "Купля-продажа" },
+      ],
+    },
+    {
+      title: "КОММУНИКАЦИИ",
+      parameters: [
+        { label: "Вода", value: "Холодное/горячее" },
+        { label: "Электричество", value: "Да" },
+        { label: "Газ", value: "Да" },
+        { label: "Отопление", value: "Центральное" },
+      ],
+    },
+  ],
 };
 
 const similarProperties = [
@@ -270,6 +328,9 @@ const ObjectDetail = () => {
 
         {/* Description */}
         <PropertyDescription description={mockObject.description} />
+
+        {/* Full Details */}
+        <PropertyFullDetails sections={mockObject.fullDetails} />
 
         {/* Main Content */}
         <div className="space-y-8">
