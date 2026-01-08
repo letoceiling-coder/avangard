@@ -24,6 +24,7 @@ import PropertyAddressBlock from "@/components/PropertyAddressBlock";
 import PropertyQuickActions from "@/components/PropertyQuickActions";
 import PropertyMainCTAButtons from "@/components/PropertyMainCTAButtons";
 import PropertyKeyFeatures from "@/components/PropertyKeyFeatures";
+import PropertyDescription from "@/components/PropertyDescription";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -266,6 +267,9 @@ const ObjectDetail = () => {
 
         {/* Key Features */}
         <PropertyKeyFeatures features={mockObject.keyFeatures} />
+
+        {/* Description */}
+        <PropertyDescription description={mockObject.description} />
 
         {/* Main Content */}
         <div className="space-y-8">
