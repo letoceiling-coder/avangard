@@ -23,6 +23,7 @@ import PropertyTitleBlock from "@/components/PropertyTitleBlock";
 import PropertyAddressBlock from "@/components/PropertyAddressBlock";
 import PropertyQuickActions from "@/components/PropertyQuickActions";
 import PropertyMainCTAButtons from "@/components/PropertyMainCTAButtons";
+import PropertyKeyFeatures from "@/components/PropertyKeyFeatures";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -262,6 +263,9 @@ const ObjectDetail = () => {
           inRegistry={true}
           propertyTitle={mockObject.title}
         />
+
+        {/* Key Features */}
+        <PropertyKeyFeatures features={mockObject.keyFeatures} />
 
         {/* Main Content */}
         <div className="space-y-8">
