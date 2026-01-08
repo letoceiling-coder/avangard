@@ -258,7 +258,11 @@ class Deploy extends Command
             $this->info('  ✅ Remote origin добавлен');
         } else {
             // Проверяем, правильный ли URL у origin
-            if (!str_contains($output, $this->gitRepository)) {
+            // Проверяем базовую часть URL (без токена/аутентификации), чтобы не перезаписывать настроенный доступ
+            $baseRepositoryUrl = 'github.com/letoceiling-coder/avangard.git';
+            $hasCorrectRepo = str_contains($output, $baseRepositoryUrl) || str_contains($output, $this->gitRepository);
+            
+            if (!$hasCorrectRepo) {
                 $this->line('  🔄 Обновление origin remote...');
                 $process = Process::run("git remote set-url origin {$this->gitRepository}");
                 
@@ -269,6 +273,7 @@ class Deploy extends Command
                 $this->info('  ✅ Remote origin обновлен');
             } else {
                 $this->line('  ✅ Remote origin настроен правильно');
+                // Не перезаписываем URL, если он уже настроен (может содержать токен или SSH)
             }
         }
 
