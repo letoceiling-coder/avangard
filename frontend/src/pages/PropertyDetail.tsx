@@ -21,13 +21,15 @@ import PropertyCard from "@/components/PropertyCard";
 import PropertyHeroBlock from "@/components/PropertyHeroBlock";
 import PropertyTopBar from "@/components/PropertyTopBar";
 import PropertyMediaGallery from "@/components/PropertyMediaGallery";
+import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
 import { toast } from "sonner";
 
 const mockProperty = {
   id: "1",
   title: "3-комнатная квартира в ЖК «Белый город»",
-  price: 6500000,
-  pricePerMeter: 76470,
+  price: 15900000,
+  pricePerMeter: 496875,
+  status: "good_price" as const,
   mortgagePayment: 58000,
   images: [
     "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1200&h=800&fit=crop",
@@ -221,6 +223,13 @@ const PropertyDetail = () => {
             propertyTitle={mockProperty.title}
           />
         </div>
+
+        {/* Price & Status Block */}
+        <PropertyPriceStatusBlock
+          price={mockProperty.price}
+          pricePerSquareMeter={mockProperty.pricePerMeter}
+          status={mockProperty.status}
+        />
 
         {/* Main Content */}
         <div className="space-y-6">
