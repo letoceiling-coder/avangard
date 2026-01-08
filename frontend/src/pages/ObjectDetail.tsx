@@ -16,6 +16,7 @@ import {
 import YandexMap from "@/components/YandexMap";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyHeroBlock from "@/components/PropertyHeroBlock";
+import PropertyTopBar from "@/components/PropertyTopBar";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -122,6 +123,23 @@ const ObjectDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      {/* Top Bar */}
+      <PropertyTopBar
+        propertyId={mockObject.id}
+        propertyTitle={mockObject.title}
+        property={{
+          id: mockObject.id,
+          title: mockObject.title,
+          price: mockObject.price,
+          image: mockObject.images[0],
+          area: mockObject.area,
+          rooms: mockObject.rooms,
+          floor: mockObject.floor,
+          address: mockObject.address,
+          type: mockObject.type,
+        }}
+      />
 
       <main className="container mx-auto px-4 py-6 md:py-8 pb-24 lg:pb-8">
         {/* Breadcrumbs */}

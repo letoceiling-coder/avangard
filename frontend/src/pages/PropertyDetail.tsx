@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyHeroBlock from "@/components/PropertyHeroBlock";
+import PropertyTopBar from "@/components/PropertyTopBar";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -134,6 +135,23 @@ const PropertyDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      {/* Top Bar */}
+      <PropertyTopBar
+        propertyId={mockProperty.id}
+        propertyTitle={mockProperty.title}
+        property={{
+          id: mockProperty.id,
+          title: mockProperty.title,
+          price: mockProperty.price,
+          image: mockProperty.images[0],
+          area: mockProperty.area,
+          rooms: mockProperty.rooms,
+          floor: mockProperty.floor,
+          address: mockProperty.address,
+          type: mockProperty.type,
+        }}
+      />
 
       <main className="container mx-auto px-4 py-6 md:py-8 pb-24 lg:pb-8">
         {/* Breadcrumbs */}
