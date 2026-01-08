@@ -250,8 +250,9 @@ const PropertyDetail = () => {
         {/* Address Block */}
         <PropertyAddressBlock
           address={mockProperty.address}
+          district={mockProperty.district}
+          nearestMetro={mockProperty.metro}
           city={mockProperty.city}
-          metro={mockProperty.metro}
         />
 
         {/* Main Content */}
