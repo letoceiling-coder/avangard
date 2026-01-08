@@ -22,6 +22,7 @@ import PropertyHeroBlock from "@/components/PropertyHeroBlock";
 import PropertyTopBar from "@/components/PropertyTopBar";
 import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
+import PropertyTitleBlock from "@/components/PropertyTitleBlock";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -69,6 +70,8 @@ const mockProperty = {
   developer: "Строительная компания «Новый Дом»",
   developerId: "noviy-dom",
   coordinates: [50.5997, 36.5873] as [number, number],
+  propertyType: "квартира" as const,
+  city: "Белгород",
 };
 
 const similarProperties = [
@@ -231,20 +234,19 @@ const PropertyDetail = () => {
           status={mockProperty.status}
         />
 
+        {/* Title Block */}
+        <PropertyTitleBlock
+          rooms={mockProperty.rooms}
+          type={mockProperty.propertyType}
+          squareMeters={mockProperty.area}
+          floor={mockProperty.floor}
+          totalFloors={mockProperty.totalFloors}
+          buildingName={mockProperty.complex.replace("ЖК «", "").replace("»", "")}
+          city={mockProperty.city}
+        />
+
         {/* Main Content */}
         <div className="space-y-6">
-            {/* Title */}
-            <div>
-              <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-3">
-                {mockProperty.title}
-              </h1>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                  {mockProperty.readiness}
-                </span>
-              </div>
-            </div>
-
             {/* Quick Stats */}
             <div className="bg-card rounded-2xl border border-border p-6 shadow-card">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

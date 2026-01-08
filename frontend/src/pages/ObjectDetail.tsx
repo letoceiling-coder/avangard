@@ -19,6 +19,7 @@ import PropertyHeroBlock from "@/components/PropertyHeroBlock";
 import PropertyTopBar from "@/components/PropertyTopBar";
 import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
+import PropertyTitleBlock from "@/components/PropertyTitleBlock";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -52,6 +53,8 @@ const mockObject = {
   agentPhone: "+7 (999) 123-45-67",
   agentName: "Алексей Иванов",
   pdfUrl: "/documents/property-obj-1.pdf",
+  propertyType: "квартира" as const,
+  city: "Белгород",
 };
 
 const similarProperties = [
@@ -209,6 +212,17 @@ const ObjectDetail = () => {
           price={mockObject.price}
           pricePerSquareMeter={mockObject.pricePerMeter}
           status={mockObject.status}
+        />
+
+        {/* Title Block */}
+        <PropertyTitleBlock
+          rooms={mockObject.rooms}
+          type={mockObject.propertyType}
+          squareMeters={mockObject.area}
+          floor={mockObject.floor}
+          totalFloors={mockObject.totalFloors}
+          buildingName={mockObject.complex.replace("ЖК «", "").replace("»", "")}
+          city={mockObject.city}
         />
 
         {/* Main Content */}
