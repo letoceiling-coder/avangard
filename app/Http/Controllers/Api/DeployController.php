@@ -72,13 +72,46 @@ class DeployController extends Controller
             if (!$gitPullResult['success']) {
                 throw new \Exception("Ошибка git pull: {$gitPullResult['error']}");
             }
+            
+            // 1.1. Проверка обновления файлов после git pull
+            $newCommitHash = $this->getCurrentCommitHash();
+            $commitChanged = $oldCommitHash !== $newCommitHash;
+            Log::info('📊 Сравнение коммитов после git pull', [
+                'old_commit' => $oldCommitHash ? substr($oldCommitHash, 0, 7) : 'unknown',
+                'new_commit' => $newCommitHash ? substr($newCommitHash, 0, 7) : 'unknown',
+                'changed' => $commitChanged,
+            ]);
+            
+            // Проверяем, обновились ли файлы React фронтенда
+            if ($commitChanged) {
+                Log::info('🔄 Коммит изменился, проверяем обновление файлов...');
+                $reactFilesBefore = $this->checkReactFrontendFiles();
+                Log::info('📁 Файлы React фронтенда после git pull', $reactFilesBefore);
+            }
 
             // 1.5. Проверка наличия собранных файлов фронтенда
             $frontendCheck = $this->checkFrontendFiles();
             $result['data']['frontend_files'] = $frontendCheck;
+            
+            // Детальная проверка файлов React фронтенда
+            $reactFrontendCheck = $this->checkReactFrontendFiles();
+            $result['data']['react_frontend_files'] = $reactFrontendCheck;
+            Log::info('📦 Проверка React фронтенда', $reactFrontendCheck);
+            
             if (!$frontendCheck['manifest_exists']) {
                 Log::warning('⚠️ Manifest.json не найден после git pull. Убедитесь, что файлы собраны локально и закоммичены в git.');
             }
+            
+            // Логируем информацию о файлах для отладки
+            Log::info('📁 Информация о файлах фронтенда', [
+                'vue_manifest_exists' => $frontendCheck['manifest_exists'],
+                'vue_assets_count' => $frontendCheck['assets_count'],
+                'react_index_exists' => $reactFrontendCheck['index_html_exists'],
+                'react_js_exists' => $reactFrontendCheck['js_exists'],
+                'react_css_exists' => $reactFrontendCheck['css_exists'],
+                'react_js_size' => $reactFrontendCheck['js_size'] ?? 0,
+                'react_js_date' => $reactFrontendCheck['js_date'] ?? 'unknown',
+            ]);
 
             // 2. Composer install
             $composerResult = $this->handleComposerInstall();
@@ -1236,6 +1269,49 @@ class DeployController extends Controller
             'manifest_exists' => $manifestExists,
             'assets_dir_exists' => $assetsExists,
             'assets_count' => $assetsCount,
+        ];
+    }
+
+    /**
+     * Проверить наличие файлов React фронтенда
+     */
+    protected function checkReactFrontendFiles(): array
+    {
+        $indexHtmlPath = public_path('frontend/index.html');
+        $indexHtmlExists = file_exists($indexHtmlPath);
+        
+        $assetsDir = public_path('frontend/assets');
+        $assetsExists = is_dir($assetsDir);
+        
+        $jsFiles = [];
+        $cssFiles = [];
+        $jsSize = 0;
+        $jsDate = null;
+        
+        if ($assetsExists) {
+            // Ищем JS файлы
+            $jsFiles = glob($assetsDir . '/index-*.js');
+            if (!empty($jsFiles)) {
+                $jsFile = $jsFiles[0];
+                $jsSize = filesize($jsFile);
+                $jsDate = date('Y-m-d H:i:s', filemtime($jsFile));
+            }
+            
+            // Ищем CSS файлы
+            $cssFiles = glob($assetsDir . '/index-*.css');
+        }
+        
+        return [
+            'index_html_exists' => $indexHtmlExists,
+            'assets_dir_exists' => $assetsExists,
+            'js_exists' => !empty($jsFiles),
+            'js_files_count' => count($jsFiles),
+            'js_file' => !empty($jsFiles) ? basename($jsFiles[0]) : null,
+            'js_size' => $jsSize,
+            'js_date' => $jsDate,
+            'css_exists' => !empty($cssFiles),
+            'css_files_count' => count($cssFiles),
+            'css_file' => !empty($cssFiles) ? basename($cssFiles[0]) : null,
         ];
     }
 
