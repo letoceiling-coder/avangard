@@ -111,7 +111,7 @@ const PropertyTopBar = ({ propertyId, propertyTitle, property }: PropertyTopBarP
   };
 
   return (
-    <div className="sticky top-0 z-[100] bg-white border-b border-[#EEEEEE] h-14 flex items-center px-4 md:px-6 lg:px-8">
+    <div className="sticky top-0 z-[100] bg-white border-b border-[#EEEEEE] min-h-14 flex items-center py-3 px-4 md:py-3.5 md:px-6 lg:py-4 lg:px-8">
       <div className="flex items-center justify-between w-full max-w-7xl mx-auto gap-2">
         {/* Left: Back button (mobile) / Logo (desktop) */}
         <div className="flex items-center min-w-0 flex-1">
