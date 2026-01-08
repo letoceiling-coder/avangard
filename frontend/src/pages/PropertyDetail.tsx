@@ -29,6 +29,7 @@ import PropertyMainCTAButtons from "@/components/PropertyMainCTAButtons";
 import PropertyKeyFeatures from "@/components/PropertyKeyFeatures";
 import PropertyDescription from "@/components/PropertyDescription";
 import PropertyFullDetails from "@/components/PropertyFullDetails";
+import PropertyInfrastructure from "@/components/PropertyInfrastructure";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -135,6 +136,14 @@ const mockProperty = {
         { label: "Отопление", value: "Центральное" },
       ],
     },
+  ],
+  infrastructure: [
+    { type: "school", icon: "school", name: "Школа" },
+    { type: "park", icon: "park", name: "Парк" },
+    { type: "clinic", icon: "clinic", name: "Поликлиника" },
+    { type: "shop", icon: "shop", name: "Магазин" },
+    { type: "square", icon: "square", name: "Площадь" },
+    { type: "church", icon: "church", name: "Церковь" },
   ],
 };
 
@@ -351,6 +360,9 @@ const PropertyDetail = () => {
 
         {/* Full Details */}
         <PropertyFullDetails sections={mockProperty.fullDetails} />
+
+        {/* Infrastructure */}
+        <PropertyInfrastructure infrastructure={mockProperty.infrastructure} />
 
         {/* Main Content */}
         <div className="space-y-6">
