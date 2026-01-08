@@ -32,6 +32,7 @@ import PropertyFullDetails from "@/components/PropertyFullDetails";
 import PropertyInfrastructure from "@/components/PropertyInfrastructure";
 import PropertyMap from "@/components/PropertyMap";
 import PropertySimilarObjects from "@/components/PropertySimilarObjects";
+import PropertyStickyCTA from "@/components/PropertyStickyCTA";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -554,6 +555,16 @@ const PropertyDetail = () => {
         </section>
       </main>
 
+      {/* Mobile Sticky CTA Footer */}
+      <PropertyStickyCTA
+        price={mockProperty.price}
+        phone={mockProperty.agentPhone}
+        agentName={mockProperty.agentName}
+        propertyTitle={mockProperty.title}
+      />
+
+      {/* Spacer for mobile sticky footer */}
+      <div className="h-[64px] md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} />
 
       <Footer />
     </div>

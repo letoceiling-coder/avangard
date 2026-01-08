@@ -29,6 +29,7 @@ import PropertyFullDetails from "@/components/PropertyFullDetails";
 import PropertyInfrastructure from "@/components/PropertyInfrastructure";
 import PropertyMap from "@/components/PropertyMap";
 import PropertySimilarObjects from "@/components/PropertySimilarObjects";
+import PropertyStickyCTA from "@/components/PropertyStickyCTA";
 import { toast } from "sonner";
 
 const mockObject = {
