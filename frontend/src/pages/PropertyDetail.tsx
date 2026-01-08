@@ -31,6 +31,7 @@ import PropertyDescription from "@/components/PropertyDescription";
 import PropertyFullDetails from "@/components/PropertyFullDetails";
 import PropertyInfrastructure from "@/components/PropertyInfrastructure";
 import PropertyMap from "@/components/PropertyMap";
+import PropertySimilarObjects from "@/components/PropertySimilarObjects";
 import { toast } from "sonner";
 
 const mockProperty = {
@@ -371,6 +372,21 @@ const PropertyDetail = () => {
           longitude={mockProperty.coordinates[1]}
           address={mockProperty.address}
           city={mockProperty.city}
+        />
+
+        {/* Similar Objects */}
+        <PropertySimilarObjects
+          similar={similarProperties.map((p) => ({
+            id: p.id,
+            image: p.image,
+            price: p.price,
+            area: p.area,
+            floor: p.floor,
+            totalFloors: 25, // Можно добавить в mockProperty если нужно
+            rooms: p.rooms,
+            district: p.address?.split(",")[0] || "Центральный район",
+            address: p.address,
+          }))}
         />
 
         {/* Main Content */}

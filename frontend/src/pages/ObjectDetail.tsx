@@ -28,6 +28,7 @@ import PropertyDescription from "@/components/PropertyDescription";
 import PropertyFullDetails from "@/components/PropertyFullDetails";
 import PropertyInfrastructure from "@/components/PropertyInfrastructure";
 import PropertyMap from "@/components/PropertyMap";
+import PropertySimilarObjects from "@/components/PropertySimilarObjects";
 import { toast } from "sonner";
 
 const mockObject = {
@@ -351,6 +352,45 @@ const ObjectDetail = () => {
           longitude={mockObject.coordinates[1]}
           address={mockObject.address}
           city={mockObject.city}
+        />
+
+        {/* Similar Objects */}
+        <PropertySimilarObjects
+          similar={[
+            {
+              id: "2",
+              image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop",
+              price: 4800000,
+              area: 62,
+              floor: 8,
+              totalFloors: 25,
+              rooms: 2,
+              district: "Центральный район",
+              address: "пр. Славы, 45",
+            },
+            {
+              id: "3",
+              image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop",
+              price: 15000000,
+              area: 145,
+              floor: 18,
+              totalFloors: 25,
+              rooms: 4,
+              district: "Центральный район",
+              address: "ул. Победы, 100",
+            },
+            {
+              id: "4",
+              image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop",
+              price: 3200000,
+              area: 48,
+              floor: 5,
+              totalFloors: 12,
+              rooms: 1,
+              district: "Центральный район",
+              address: "ул. Ленина, 25",
+            },
+          ]}
         />
 
         {/* Main Content */}
