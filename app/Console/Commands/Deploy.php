@@ -523,6 +523,37 @@ class Deploy extends Command
                     );
                 }
                 
+                // Проверяем на ошибки аутентификации и доступа
+                if (str_contains($errorOutput, 'Permission denied') || 
+                    str_contains($errorOutput, '403') || 
+                    str_contains($errorOutput, 'Authentication failed') ||
+                    str_contains($errorOutput, 'fatal: could not read from remote repository')) {
+                    
+                    $this->newLine();
+                    $this->error('❌ ОШИБКА: Нет прав на запись в репозиторий!');
+                    $this->newLine();
+                    $this->line('📋 Возможные решения:');
+                    $this->line('');
+                    $this->line('1. Personal Access Token (быстро):');
+                    $this->line('   Windows: setup-git-token.bat');
+                    $this->line('   macOS/Linux: ./setup-git-token.sh');
+                    $this->line('');
+                    $this->line('2. SSH (рекомендуется для macOS/Linux):');
+                    $this->line('   ./setup-git-ssh.sh');
+                    $this->line('');
+                    $this->line('3. Получить права на репозиторий:');
+                    $this->line('   Попросите владельца добавить вас как collaborator');
+                    $this->line('');
+                    $this->line('📖 Подробнее: см. DEPLOY_TROUBLESHOOTING.md');
+                    $this->newLine();
+                    
+                    throw new \Exception(
+                        "Ошибка доступа к репозиторию. Нет прав на запись.\n" .
+                        "См. DEPLOY_TROUBLESHOOTING.md для решения проблемы.\n" .
+                        "Ошибка:\n" . $errorOutput
+                    );
+                }
+                
                 // Если обычный push не прошел из-за non-fast-forward, предлагаем force
                 if (str_contains($errorOutput, 'non-fast-forward') && !$forcePush) {
                     throw new \Exception(
