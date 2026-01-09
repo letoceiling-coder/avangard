@@ -18,20 +18,8 @@ import {
   Ruler, DoorOpen, Bath, Sparkles, ChevronRight, Maximize2
 } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
-import PropertyHeroBlock from "@/components/PropertyHeroBlock";
 import PropertyTopBar from "@/components/PropertyTopBar";
-import PropertyMediaGallery from "@/components/PropertyMediaGallery";
-import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
-import PropertyTitleBlock from "@/components/PropertyTitleBlock";
-import PropertyAddressBlock from "@/components/PropertyAddressBlock";
-import PropertyQuickActions from "@/components/PropertyQuickActions";
-import PropertyMainCTAButtons from "@/components/PropertyMainCTAButtons";
-import PropertyKeyFeatures from "@/components/PropertyKeyFeatures";
-import PropertyDescription from "@/components/PropertyDescription";
-import PropertyFullDetails from "@/components/PropertyFullDetails";
-import PropertyInfrastructure from "@/components/PropertyInfrastructure";
-import PropertyMap from "@/components/PropertyMap";
-import PropertySimilarObjects from "@/components/PropertySimilarObjects";
+import PropertyMainBlock from "@/components/PropertyMainBlock";
 import PropertyStickyCTA from "@/components/PropertyStickyCTA";
 import { toast } from "sonner";
 
@@ -271,68 +259,30 @@ const PropertyDetail = () => {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {/* Hero Block - Gallery + Info */}
-        <PropertyHeroBlock
-          property={{
-            id: mockProperty.id,
-            title: mockProperty.title,
-            price: mockProperty.price,
-            pricePerMeter: mockProperty.pricePerMeter,
-            images: mockProperty.images,
-            area: mockProperty.area,
-            rooms: mockProperty.rooms,
-            floor: mockProperty.floor,
-            totalFloors: mockProperty.totalFloors,
-            address: mockProperty.address,
-            district: mockProperty.district,
-            type: mockProperty.type,
-          }}
-          onPhoneClick={handlePhoneClick}
-          onRequestClick={handleRequestClick}
-        />
-
-        {/* Media Gallery Block */}
-        <div className="mb-6 md:mb-8">
-          <PropertyMediaGallery
-            photos={mockProperty.images.map((url, index) => ({
-              id: `photo-${index + 1}`,
-              url,
-              alt: `${mockProperty.title} - фото ${index + 1}`,
-            }))}
-            propertyTitle={mockProperty.title}
-          />
-        </div>
-
-        {/* Price & Status Block */}
-        <PropertyPriceStatusBlock
+        {/* Main Block - Mobile-first adaptive layout */}
+        <PropertyMainBlock
+          photos={mockProperty.images.map((url, index) => ({
+            id: `photo-${index + 1}`,
+            url,
+            alt: `${mockProperty.title} - фото ${index + 1}`,
+          }))}
+          propertyTitle={mockProperty.title}
           price={mockProperty.price}
           pricePerSquareMeter={mockProperty.pricePerMeter}
           status={mockProperty.status}
-        />
-
-        {/* Title Block */}
-        <PropertyTitleBlock
           rooms={mockProperty.rooms}
-          type={mockProperty.propertyType}
+          propertyType={mockProperty.propertyType}
           squareMeters={mockProperty.area}
           floor={mockProperty.floor}
           totalFloors={mockProperty.totalFloors}
           buildingName={mockProperty.complex.replace("ЖК «", "").replace("»", "")}
           city={mockProperty.city}
-        />
-
-        {/* Address Block */}
-        <PropertyAddressBlock
           address={mockProperty.address}
           district={mockProperty.district}
           nearestMetro={mockProperty.metro}
-          city={mockProperty.city}
-        />
-
-        {/* Quick Actions */}
-        <PropertyQuickActions
+          addressCity={mockProperty.city}
           propertyId={mockProperty.id}
-          property={{
+          propertyForActions={{
             id: mockProperty.id,
             title: mockProperty.title,
             price: mockProperty.price,
@@ -344,46 +294,26 @@ const PropertyDetail = () => {
             type: mockProperty.type,
             pricePerMeter: mockProperty.pricePerMeter,
           }}
-        />
-
-        {/* Main CTA Buttons */}
-        <PropertyMainCTAButtons
           phone={mockProperty.agentPhone}
           agentName={mockProperty.agentName}
           hasSecurity={mockProperty.hasSecurity}
           inRegistry={mockProperty.inRegistry}
-          propertyTitle={mockProperty.title}
-        />
-
-        {/* Key Features */}
-        <PropertyKeyFeatures features={mockProperty.keyFeatures} />
-
-        {/* Description */}
-        <PropertyDescription description={mockProperty.description} />
-
-        {/* Full Details */}
-        <PropertyFullDetails sections={mockProperty.fullDetails} />
-
-        {/* Infrastructure */}
-        <PropertyInfrastructure infrastructure={mockProperty.infrastructure} />
-
-        {/* Map */}
-        <PropertyMap
+          ctaPropertyTitle={mockProperty.title}
+          keyFeatures={mockProperty.keyFeatures}
+          description={mockProperty.description}
+          fullDetails={mockProperty.fullDetails}
+          infrastructure={mockProperty.infrastructure}
           latitude={mockProperty.coordinates[0]}
           longitude={mockProperty.coordinates[1]}
-          address={mockProperty.address}
-          city={mockProperty.city}
-        />
-
-        {/* Similar Objects */}
-        <PropertySimilarObjects
-          similar={similarProperties.map((p) => ({
+          mapAddress={mockProperty.address}
+          mapCity={mockProperty.city}
+          similarObjects={similarProperties.map((p) => ({
             id: p.id,
             image: p.image,
             price: p.price,
             area: p.area,
             floor: p.floor,
-            totalFloors: 25, // Можно добавить в mockProperty если нужно
+            totalFloors: 25,
             rooms: p.rooms,
             district: p.address?.split(",")[0] || "Центральный район",
             address: p.address,
