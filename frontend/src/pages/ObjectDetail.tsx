@@ -119,6 +119,10 @@ const mockObject = {
     { type: "square", icon: "square", name: "Площадь" },
     { type: "church", icon: "church", name: "Церковь" },
   ],
+  updatedAt: new Date(Date.now() - 5 * 60 * 1000), // 5 минут назад
+  createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 дней назад
+  viewsTotal: 892,
+  viewsToday: 15,
 };
 
 const similarProperties = [
@@ -230,13 +234,14 @@ const ObjectDetail = () => {
           price={mockObject.price}
           pricePerSquareMeter={mockObject.pricePerMeter}
           status={mockObject.status}
-          rooms={mockObject.rooms}
           propertyType={mockObject.propertyType}
           squareMeters={mockObject.area}
           floor={mockObject.floor}
           totalFloors={mockObject.totalFloors}
-          buildingName={mockObject.complex.replace("ЖК «", "").replace("»", "")}
-          city={mockObject.city}
+          updatedAt={mockObject.updatedAt || mockObject.createdAt}
+          createdAt={mockObject.createdAt}
+          viewsTotal={mockObject.viewsTotal}
+          viewsToday={mockObject.viewsToday}
           address={mockObject.address}
           district={mockObject.district}
           nearestMetro={mockObject.metro}

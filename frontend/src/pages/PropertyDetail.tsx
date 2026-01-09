@@ -140,6 +140,10 @@ const mockProperty = {
   agentName: "Алексей Иванов",
   hasSecurity: true,
   inRegistry: true,
+  updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 часа назад
+  createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 дней назад
+  viewsTotal: 1248,
+  viewsToday: 23,
 };
 
 const similarProperties = [
@@ -246,13 +250,14 @@ const PropertyDetail = () => {
           price={mockProperty.price}
           pricePerSquareMeter={mockProperty.pricePerMeter}
           status={mockProperty.status}
-          rooms={mockProperty.rooms}
           propertyType={mockProperty.propertyType}
           squareMeters={mockProperty.area}
           floor={mockProperty.floor}
           totalFloors={mockProperty.totalFloors}
-          buildingName={mockProperty.complex.replace("ЖК «", "").replace("»", "")}
-          city={mockProperty.city}
+          updatedAt={mockProperty.updatedAt || mockProperty.createdAt}
+          createdAt={mockProperty.createdAt}
+          viewsTotal={mockProperty.viewsTotal}
+          viewsToday={mockProperty.viewsToday}
           address={mockProperty.address}
           district={mockProperty.district}
           nearestMetro={mockProperty.metro}

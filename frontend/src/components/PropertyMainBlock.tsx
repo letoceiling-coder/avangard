@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import PropertyPriceStatusBlock from "@/components/PropertyPriceStatusBlock";
-import PropertyTitleBlock from "@/components/PropertyTitleBlock";
+import PropertyTitleMetaBlock from "@/components/PropertyTitleMetaBlock";
 import PropertyAddressBlock from "@/components/PropertyAddressBlock";
 import PropertyQuickActions from "@/components/PropertyQuickActions";
 import PropertyMainCTAButtons from "@/components/PropertyMainCTAButtons";
@@ -15,7 +15,7 @@ import PropertySimilarObjects from "@/components/PropertySimilarObjects";
 interface Photo {
   id: string;
   url: string;
-  alt?: string;
+  alt?: string | undefined;
 }
 
 interface Feature {
@@ -56,14 +56,15 @@ interface PropertyMainBlockProps {
   pricePerSquareMeter: number;
   status?: "good_price" | "new" | "price_drop" | "verified" | null;
 
-  // Title
-  rooms: number;
+  // Title & Meta
   propertyType: "квартира" | "апартаменты" | "дом" | "комната";
   squareMeters: number;
   floor: number;
   totalFloors: number;
-  buildingName?: string;
-  city?: string;
+  updatedAt?: string | Date;
+  createdAt?: string | Date;
+  viewsTotal?: number;
+  viewsToday?: number;
 
   // Address
   address: string;
@@ -123,13 +124,14 @@ const PropertyMainBlock = ({
   price,
   pricePerSquareMeter,
   status,
-  rooms,
   propertyType,
   squareMeters,
   floor,
   totalFloors,
-  buildingName,
-  city,
+  updatedAt,
+  createdAt,
+  viewsTotal,
+  viewsToday,
   address,
   district,
   nearestMetro,
@@ -168,15 +170,16 @@ const PropertyMainBlock = ({
           status={status}
         />
 
-        {/* 3. Title */}
-        <PropertyTitleBlock
-          rooms={rooms}
-          type={propertyType}
-          squareMeters={squareMeters}
+        {/* 3. Title & Meta */}
+        <PropertyTitleMetaBlock
+          propertyType={propertyType}
+          area={squareMeters}
           floor={floor}
           totalFloors={totalFloors}
-          buildingName={buildingName}
-          city={city}
+          updatedAt={updatedAt}
+          createdAt={createdAt}
+          viewsTotal={viewsTotal}
+          viewsToday={viewsToday}
         />
 
         {/* 4. Address */}
@@ -235,15 +238,16 @@ const PropertyMainBlock = ({
             <PropertyMediaGallery photos={photos} propertyTitle={propertyTitle} />
           </div>
 
-          {/* 2. Title */}
-          <PropertyTitleBlock
-            rooms={rooms}
-            type={propertyType}
-            squareMeters={squareMeters}
+          {/* 2. Title & Meta */}
+          <PropertyTitleMetaBlock
+            propertyType={propertyType}
+            area={squareMeters}
             floor={floor}
             totalFloors={totalFloors}
-            buildingName={buildingName}
-            city={city}
+            updatedAt={updatedAt}
+            createdAt={createdAt}
+            viewsTotal={viewsTotal}
+            viewsToday={viewsToday}
           />
 
           {/* 3. Address */}

@@ -6,7 +6,7 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 interface Photo {
   id: string;
   url: string;
-  alt: string;
+  alt?: string;
 }
 
 interface PropertyMediaGalleryProps {
