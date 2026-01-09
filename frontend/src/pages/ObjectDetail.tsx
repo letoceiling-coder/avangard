@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import YandexMap from "@/components/YandexMap";
 import PropertyCard from "@/components/PropertyCard";
-import PropertyTopBar from "@/components/PropertyTopBar";
+import PropertyDetailHeader from "@/components/PropertyDetailHeader";
 import PropertyMainBlock from "@/components/PropertyMainBlock";
 import PropertyStickyCTA from "@/components/PropertyStickyCTA";
 import { toast } from "sonner";
@@ -193,54 +193,34 @@ const ObjectDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      {/* Top Bar */}
-      <PropertyTopBar
-        propertyId={mockObject.id}
-        propertyTitle={mockObject.title}
-        property={{
-          id: mockObject.id,
-          title: mockObject.title,
-          price: mockObject.price,
-          image: mockObject.images[0],
-          area: mockObject.area,
-          rooms: mockObject.rooms,
-          floor: mockObject.floor,
-          address: mockObject.address,
-          type: mockObject.type,
-        }}
-      />
 
-      <main className="container mx-auto px-4 py-6 md:py-8 pb-24 lg:pb-8">
-        {/* Breadcrumbs */}
-        <Breadcrumb className="mb-6">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
-                  Главная
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to="/catalog" className="text-muted-foreground hover:text-primary transition-colors">
-                  Каталог
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="text-foreground font-medium truncate max-w-[200px]">
-                {mockObject.title}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+      <main className="container mx-auto px-0 pb-24 lg:pb-8">
+        {/* Compact Header: Breadcrumbs + Actions */}
+        <div className="px-4 pt-2 pb-2 md:px-6 md:pt-3 md:pb-2">
+          <PropertyDetailHeader
+            propertyId={mockObject.id}
+            propertyTitle={mockObject.title}
+            breadcrumbs={[
+              { label: "Главная", href: "/" },
+              { label: "Каталог", href: "/catalog" },
+            ]}
+            property={{
+              id: mockObject.id,
+              title: mockObject.title,
+              price: mockObject.price,
+              image: mockObject.images[0],
+              area: mockObject.area,
+              rooms: mockObject.rooms,
+              floor: mockObject.floor,
+              address: mockObject.address,
+              type: mockObject.type,
+            }}
+          />
+        </div>
 
         {/* Main Block - Mobile-first adaptive layout */}
-        <PropertyMainBlock
+        <div className="px-4 md:px-6">
+          <PropertyMainBlock
           photos={mockObject.images.map((url, index) => ({
             id: `photo-${index + 1}`,
             url,
@@ -322,7 +302,8 @@ const ObjectDetail = () => {
               address: "ул. Ленина, 25",
             },
           ]}
-        />
+          />
+        </div>
 
         {/* Main Content */}
         <div className="space-y-8">

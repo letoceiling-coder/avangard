@@ -18,7 +18,7 @@ import {
   Ruler, DoorOpen, Bath, Sparkles, ChevronRight, Maximize2
 } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
-import PropertyTopBar from "@/components/PropertyTopBar";
+import PropertyDetailHeader from "@/components/PropertyDetailHeader";
 import PropertyMainBlock from "@/components/PropertyMainBlock";
 import PropertyStickyCTA from "@/components/PropertyStickyCTA";
 import { toast } from "sonner";
@@ -136,6 +136,10 @@ const mockProperty = {
     { type: "square", icon: "square", name: "Площадь" },
     { type: "church", icon: "church", name: "Церковь" },
   ],
+  agentPhone: "+7 (999) 123-45-67",
+  agentName: "Алексей Иванов",
+  hasSecurity: true,
+  inRegistry: true,
 };
 
 const similarProperties = [
@@ -206,58 +210,30 @@ const PropertyDetail = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      {/* Top Bar */}
-      <PropertyTopBar
-        propertyId={mockProperty.id}
-        propertyTitle={mockProperty.title}
-        property={{
-          id: mockProperty.id,
-          title: mockProperty.title,
-          price: mockProperty.price,
-          image: mockProperty.images[0],
-          area: mockProperty.area,
-          rooms: mockProperty.rooms,
-          floor: mockProperty.floor,
-          address: mockProperty.address,
-          type: mockProperty.type,
-        }}
-      />
-
-      <main className="container mx-auto px-4 py-6 md:py-8 pb-24 lg:pb-8">
-        {/* Breadcrumbs */}
-        <Breadcrumb className="mb-6">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
-                  Главная
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to="/catalog" className="text-muted-foreground hover:text-primary transition-colors">
-                  Новостройки
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to={`/complex/${mockProperty.complexId}`} className="text-muted-foreground hover:text-primary transition-colors">
-                  {mockProperty.complex}
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="text-foreground font-medium truncate max-w-[200px]">
-                {mockProperty.title}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+      <main className="container mx-auto px-0 pb-24 lg:pb-8">
+        {/* Compact Header: Breadcrumbs + Actions */}
+        <div className="px-4 pt-2 pb-2 md:px-6 md:pt-3 md:pb-2">
+          <PropertyDetailHeader
+            propertyId={mockProperty.id}
+            propertyTitle={mockProperty.title}
+            breadcrumbs={[
+              { label: "Главная", href: "/" },
+              { label: "Новостройки", href: "/catalog" },
+              { label: mockProperty.complex, href: `/complex/${mockProperty.complexId}` },
+            ]}
+            property={{
+              id: mockProperty.id,
+              title: mockProperty.title,
+              price: mockProperty.price,
+              image: mockProperty.images[0],
+              area: mockProperty.area,
+              rooms: mockProperty.rooms,
+              floor: mockProperty.floor,
+              address: mockProperty.address,
+              type: mockProperty.type,
+            }}
+          />
+        </div>
 
         {/* Main Block - Mobile-first adaptive layout */}
         <PropertyMainBlock
